@@ -54,7 +54,7 @@ class SimulationRequest(BaseModel):
     n_professional_retail: int = Field(default=20, ge=0, le=500)
     n_ordinary_retail: int = Field(default=40, ge=0, le=1_000)
     n_rounds: int = Field(default=5, ge=1, le=20)
-    use_llm: bool = Field(default=False, description="Use real LLM calls (requires API key)")
+    use_llm: bool = Field(default=False, description="Use real LLM calls")
     seed: int = Field(default=42)
 
 

@@ -3,7 +3,7 @@
 **Heterogeneous-agent simulation of exchange rate dynamics with LLM-driven cognition**
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Claude API](https://img.shields.io/badge/LLM-Claude%204-D97757?style=flat-square&logo=anthropic&logoColor=white)](https://anthropic.com)
+[![LLM-powered](https://img.shields.io/badge/LLM-powered-D97757?style=flat-square)](https://github.com/Leotaby/nexus-sim)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Vue 3](https://img.shields.io/badge/Vue-3.4-4FC08D?style=flat-square&logo=vuedotjs&logoColor=white)](https://vuejs.org)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-purple?style=flat-square)](LICENSE)
@@ -78,7 +78,7 @@ nexus/
 |   |   |   |-- political_actor.py       # Parties, governments
 |   |   |   |-- nonstate_actor.py        # Non-state actors (threat modeling)
 |   |   |-- services/
-|   |   |   |-- llm_engine.py            # Claude subprocess calls (claude -p)
+|   |   |   |-- llm_engine.py            # LLM subprocess calls per agent
 |   |   |   |-- simulation_runner.py     # Round orchestration, batch processing
 |   |   |   |-- agent_factory.py         # Population factory (HFCS calibration)
 |   |   |   |-- world_factory.py         # Full world builder (all entity layers)
@@ -112,7 +112,7 @@ nexus/
 
 ## 5. Quick start
 
-Requires Python >= 3.11, [uv](https://github.com/astral-sh/uv), and [Claude Code](https://claude.ai/claude-code) (for LLM calls via `claude -p`).
+Requires Python >= 3.11 and [uv](https://github.com/astral-sh/uv). LLM calls require a language model backend (configured via `LLM_CLI` in `.env`).
 
 ```bash
 # 1. Install Python dependencies

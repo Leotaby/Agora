@@ -10,7 +10,7 @@ Tests the complete pipeline end to end:
 Usage:
     uv run python scripts/run_parallel_simulation.py
     uv run python scripts/run_parallel_simulation.py --both     # Fed + ECB back to back
-    uv run python scripts/run_parallel_simulation.py --llm      # real Claude API
+    uv run python scripts/run_parallel_simulation.py --llm      # real LLM calls
     uv run python scripts/run_parallel_simulation.py --hh 1000  # scale test
 """
 import sys, os

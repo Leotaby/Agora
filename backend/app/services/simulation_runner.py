@@ -30,7 +30,7 @@ console = Console()
 class SimulationRunner:
     """
     Runs a complete NEXUS simulation end to end.
-    Supports both stub mode (no LLM) and live mode (real Claude API calls).
+    Supports both stub mode (no LLM) and live mode (real language model calls).
     """
 
     def __init__(self, use_llm: bool = True, concurrency: int = 8):
@@ -195,7 +195,7 @@ def quick_simulation(
     """
     Build a population, attach a shock, run the simulation, return results.
     use_llm=False uses stub reactions (no API keys needed).
-    use_llm=True fires real Claude calls per agent.
+    use_llm=True fires real LLM calls per agent.
     """
     factory = AgentFactory(seed=seed)
     agents = factory.build(

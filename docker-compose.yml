@@ -9,8 +9,6 @@ services:
     ports:
       - "5001:5001"
     environment:
-      - LLM_API_KEY=${LLM_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - ZEP_API_KEY=${ZEP_API_KEY}
       - NUM_HOUSEHOLD_AGENTS=${NUM_HOUSEHOLD_AGENTS:-1000}
       - NUM_ROUNDS=${NUM_ROUNDS:-10}

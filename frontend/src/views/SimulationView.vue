@@ -35,9 +35,9 @@
         <label class="toggle-wrap">
           <input type="checkbox" v-model="config.use_llm" />
           <span class="toggle-track"><span class="toggle-thumb"></span></span>
-          <span class="toggle-label">Use real LLM (requires ANTHROPIC_API_KEY)</span>
+          <span class="toggle-label">Use real LLM</span>
         </label>
-        <div class="toggle-note">Off = deterministic stub reactions (fast). On = real Claude API calls per agent.</div>
+        <div class="toggle-note">Off = deterministic stub reactions (fast). On = real language model calls per agent.</div>
       </div>
 
       <button class="run-btn" :disabled="running" @click="startSimulation">

@@ -11,8 +11,10 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # LLM (model used by claude -p subprocess calls)
-    LLM_MODEL_NAME: str = "claude-haiku-4-5-20251001"
+    # LLM backend
+    LLM_CLI: str = "claude"
+    LLM_CLI_ARGS: str = "-p"
+    MODEL_NAME: str = "claude-haiku-4-5-20251001"
 
     # Memory
     ZEP_API_KEY: str = ""

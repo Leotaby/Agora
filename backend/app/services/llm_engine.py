@@ -1,10 +1,7 @@
 """
-LLM Engine - drives real Claude reasoning for each HumanTwin agent.
+LLM Engine - drives language model reasoning for each HumanTwin agent.
 
-Uses the `claude` CLI in print mode (`claude -p`) so that no API key
-is needed — Claude Code's built-in authentication handles everything.
-
-Each agent call = one `claude -p` subprocess with a distinct prompt
+Each agent call = one LLM subprocess with a distinct prompt
 encoding the agent's cognitive architecture and economic identity.
 """
 from __future__ import annotations
@@ -168,13 +165,14 @@ usd_delta: -0.05 to +0.05 (very small, gradual shifts in savings allocation)
 
 class LLMEngine:
     """
-    Drives agent reasoning via the `claude` CLI in print mode.
-    No API key needed — uses Claude Code's built-in authentication.
-    Each call spawns `claude -p` with the agent's full prompt.
+    Drives agent reasoning via the LLM backend.
+    Each call spawns a subprocess with the agent's full prompt.
     """
 
     def __init__(self):
-        self.model = settings.LLM_MODEL_NAME
+        self.cli = settings.LLM_CLI
+        self.cli_args = settings.LLM_CLI_ARGS.split()
+        self.model = settings.MODEL_NAME
 
     def _build_user_prompt(self, agent: HumanTwin, shock: MacroShock, round_num: int) -> str:
         """Combine agent profile + shock into user message."""
@@ -192,7 +190,7 @@ Remember: you must respond ONLY with valid JSON. No prose, no markdown, no expla
         """.strip()
 
     def _build_full_prompt(self, agent: HumanTwin, shock: MacroShock, round_num: int) -> str:
-        """Combine system prompt + user message into a single prompt for claude -p."""
+        """Combine system prompt + user message into a single prompt."""
         system = TIER_SYSTEM_PROMPTS[agent.tier].strip()
         user = self._build_user_prompt(agent, shock, round_num)
         return f"{system}\n\n---\n\n{user}"
@@ -205,13 +203,13 @@ Remember: you must respond ONLY with valid JSON. No prose, no markdown, no expla
         max_tokens: int = 400,
     ) -> AgentReaction:
         """
-        Synchronous single-agent reaction via claude CLI.
+        Synchronous single-agent reaction via LLM subprocess.
         """
         prompt = self._build_full_prompt(agent, shock, round_num)
 
         try:
             result = subprocess.run(
-                ["claude", "-p", "--model", self.model],
+                [self.cli, *self.cli_args, "--model", self.model],
                 input=prompt,
                 capture_output=True,
                 text=True,
@@ -256,7 +254,7 @@ Remember: you must respond ONLY with valid JSON. No prose, no markdown, no expla
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "claude", "-p", "--model", self.model,
+                self.cli, *self.cli_args, "--model", self.model,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -302,7 +300,7 @@ Remember: you must respond ONLY with valid JSON. No prose, no markdown, no expla
     ) -> list[AgentReaction]:
         """
         Process a batch of agents concurrently.
-        concurrency controls max parallel claude -p subprocesses.
+        concurrency controls max parallel LLM subprocesses.
         """
         semaphore = asyncio.Semaphore(concurrency)
 
@@ -336,7 +334,7 @@ Remember: you must respond ONLY with valid JSON. No prose, no markdown, no expla
 def demo_single_agent_reaction(tier: AgentTier = AgentTier.MACRO_HEDGE_FUND) -> None:
     """
     Quick demo: spawn one agent of the given tier, inject a Fed hike, print reaction.
-    Uses claude CLI — no API key needed.
+    Uses LLM backend via subprocess.
     """
     from app.models.shock import fed_rate_hike_75bps
     from app.services.agent_factory import AgentFactory

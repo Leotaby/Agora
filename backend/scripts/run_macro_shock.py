@@ -4,7 +4,7 @@ Full pipeline test:
 
 Run from /backend:
     uv run python scripts/run_macro_shock.py
-    uv run python scripts/run_macro_shock.py --llm      # real Claude calls
+    uv run python scripts/run_macro_shock.py --llm      # real LLM calls
     uv run python scripts/run_macro_shock.py --ecb      # ECB cut shock
     uv run python scripts/run_macro_shock.py --rounds 8
 """
@@ -106,7 +106,7 @@ def build_final_report(sim: Simulation) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="NEXUS macro shock simulation")
-    parser.add_argument("--llm",    action="store_true", help="Use real LLM (requires ANTHROPIC_API_KEY)")
+    parser.add_argument("--llm",    action="store_true", help="Use real LLM calls")
     parser.add_argument("--ecb",    action="store_true", help="Use ECB cut shock instead of Fed hike")
     parser.add_argument("--rounds", type=int, default=6,  help="Number of simulation rounds")
     parser.add_argument("--hh",     type=int, default=100, help="Number of household agents")
