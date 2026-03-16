@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+    ports:
+      - "5001:5001"
+    environment:
+      - LLM_API_KEY=${LLM_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ZEP_API_KEY=${ZEP_API_KEY}
+      - NUM_HOUSEHOLD_AGENTS=${NUM_HOUSEHOLD_AGENTS:-1000}
+      - NUM_ROUNDS=${NUM_ROUNDS:-10}
+      - DATABASE_URL=sqlite:///./nexus.db
+    volumes:
+      - ./backend:/app
+      - nexus_logs:/app/logs
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  nexus_logs:

@@ -1,0 +1,59 @@
+name: NEXUS CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-tests:
+    name: Backend — agent profile tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv pip install --system -r requirements.txt
+
+      - name: Run agent profile test suite
+        working-directory: backend
+        run: python scripts/test_agent_profile.py
+
+      - name: Run stub simulation (no LLM needed)
+        working-directory: backend
+        run: python scripts/run_macro_shock.py --hh 50 --rounds 4
+
+      - name: Run action logger
+        working-directory: backend
+        run: python scripts/action_logger.py --hh 50 --rounds 3
+
+  frontend-build:
+    name: Frontend — build check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
