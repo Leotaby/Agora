@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS = HumanTwin — A Living Synthetic Economy of Human Agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c14;
+    --bg2: #0d1220;
+    --bg3: #111827;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8eaf0;
+    --text2: #8b90a0;
+    --text3: #555d6e;
+    --accent: #4f8ef7;
+    --accent2: #2dd4a0;
+    --amber: #f0a832;
+    --coral: #f06060;
+    --purple: #9b7ff4;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --font-body: 'Lora', serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* ---- NAV ---- */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px; height: 60px;
+    background: rgba(8,12,20,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo {
+    font-family: var(--font-head); font-size: 18px; font-weight: 800;
+    letter-spacing: 0.12em; color: var(--text);
+    text-decoration: none;
+  }
+  .nav-logo span { color: var(--accent2); }
+  .nav-links { display: flex; gap: 32px; }
+  .nav-links a {
+    font-family: var(--font-mono); font-size: 12px; color: var(--text2);
+    text-decoration: none; letter-spacing: 0.04em;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--text); }
+  .nav-cta {
+    font-family: var(--font-mono); font-size: 12px;
+    border: 1px solid var(--border2); border-radius: 6px;
+    padding: 7px 16px; color: var(--accent); background: transparent;
+    text-decoration: none; letter-spacing: 0.04em;
+    transition: all 0.2s;
+  }
+  .nav-cta:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+  /* ---- HERO ---- */
+  .hero {
+    min-height: 100vh;
+    display: flex; align-items: center;
+    padding: 100px 40px 80px;
+    position: relative; overflow: hidden;
+  }
+
+  .hero-grid-bg {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(79,142,247,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,142,247,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+  .hero-glow {
+    position: absolute; top: 20%; left: 15%;
+    width: 500px; height: 500px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(79,142,247,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-glow2 {
+    position: absolute; bottom: 10%; right: 10%;
+    width: 400px; height: 400px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(45,212,160,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-inner { max-width: 1200px; margin: 0 auto; width: 100%; position: relative; }
+
+  .hero-eyebrow {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 300;
+    color: var(--accent2); letter-spacing: 0.1em;
+    margin-bottom: 24px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .hero-eyebrow::before {
+    content: ''; display: block; width: 32px; height: 1px;
+    background: var(--accent2);
+  }
+
+  .hero-title {
+    font-family: var(--font-head); font-size: clamp(52px, 8vw, 96px);
+    font-weight: 800; line-height: 0.95;
+    letter-spacing: -0.02em; color: var(--text);
+    margin-bottom: 32px;
+  }
+  .hero-title .line2 { color: var(--accent); }
+  .hero-title .line3 { color: var(--text3); font-weight: 400; font-size: 0.65em; }
+
+  .hero-description {
+    font-family: var(--font-body); font-size: 18px; line-height: 1.7;
+    color: var(--text2); max-width: 620px; margin-bottom: 48px;
+  }
+  .hero-description em { color: var(--text); font-style: italic; }
+
+  .hero-buttons { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 64px; }
+  .btn-primary {
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em;
+    padding: 14px 28px; border-radius: 8px;
+    background: var(--accent); color: var(--bg);
+    text-decoration: none; font-weight: 500;
+    transition: all 0.2s;
+  }
+  .btn-primary:hover { background: #6ba3fa; transform: translateY(-1px); }
+  .btn-secondary {
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: 0.04em;
+    padding: 13px 28px; border-radius: 8px;
+    border: 1px solid var(--border2); color: var(--text2);
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--text2); color: var(--text); }
+
+  .hero-stats { display: flex; gap: 40px; flex-wrap: wrap; }
+  .stat { border-left: 1px solid var(--border2); padding-left: 20px; }
+  .stat-num { font-family: var(--font-head); font-size: 28px; font-weight: 700; color: var(--text); }
+  .stat-label { font-family: var(--font-mono); font-size: 11px; color: var(--text3); letter-spacing: 0.06em; margin-top: 2px; }
+
+  /* ---- SECTION COMMON ---- */
+  section { padding: 100px 40px; }
+  .section-inner { max-width: 1200px; margin: 0 auto; }
+  .section-label {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
+    color: var(--accent2); margin-bottom: 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-label::before { content: ''; display: block; width: 24px; height: 1px; background: var(--accent2); }
+  .section-title {
+    font-family: var(--font-head); font-size: clamp(28px, 4vw, 44px);
+    font-weight: 700; line-height: 1.1; letter-spacing: -0.01em;
+    margin-bottom: 24px;
+  }
+  .section-body {
+    font-size: 16px; color: var(--text2); line-height: 1.8; max-width: 680px;
+    margin-bottom: 56px;
+  }
+
+  /* ---- WHAT IS IT ---- */
+  #concept { background: var(--bg); }
+
+  .concept-split { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: start; }
+
+  .concept-left p { color: var(--text2); line-height: 1.8; margin-bottom: 20px; font-size: 16px; }
+  .concept-left em { color: var(--text); font-style: italic; }
+
+  .concept-callout {
+    border: 1px solid rgba(79,142,247,0.25); border-radius: 12px;
+    padding: 24px; background: rgba(79,142,247,0.04);
+    margin-top: 32px;
+  }
+  .callout-label { font-family: var(--font-mono); font-size: 11px; color: var(--accent); letter-spacing: 0.08em; margin-bottom: 10px; }
+  .callout-text { font-size: 15px; color: var(--text2); line-height: 1.7; font-style: italic; }
+  .callout-source { font-family: var(--font-mono); font-size: 11px; color: var(--text3); margin-top: 10px; }
+
+  .concept-right {}
+  .vs-card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .vs-header { display: grid; grid-template-columns: 1fr 1fr; }
+  .vs-col-head { padding: 14px 20px; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; }
+  .vs-col-head.theirs { background: rgba(255,255,255,0.03); color: var(--text3); }
+  .vs-col-head.ours { background: rgba(79,142,247,0.08); color: var(--accent); border-left: 1px solid var(--border); }
+  .vs-row { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--border); }
+  .vs-cell { padding: 10px 20px; font-family: var(--font-mono); font-size: 12px; line-height: 1.5; }
+  .vs-cell.theirs { color: var(--text3); }
+  .vs-cell.ours { color: var(--text2); border-left: 1px solid var(--border); background: rgba(79,142,247,0.02); }
+
+  /* ---- AGENT HIERARCHY ---- */
+  #agents { background: var(--bg2); }
+
+  .agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .agent-card {
+    border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+    background: var(--bg3);
+    transition: border-color 0.2s, transform 0.2s;
+    cursor: default;
+  }
+  .agent-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+  .agent-tier-badge {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em;
+    padding: 3px 10px; border-radius: 4px; display: inline-block; margin-bottom: 14px;
+  }
+  .tier-cb { background: rgba(240,96,96,0.12); color: #f06060; }
+  .tier-hf { background: rgba(155,127,244,0.12); color: #9b7ff4; }
+  .tier-bk { background: rgba(45,212,160,0.12); color: #2dd4a0; }
+  .tier-am { background: rgba(79,142,247,0.12); color: #4f8ef7; }
+  .tier-pf { background: rgba(240,168,50,0.12); color: #f0a832; }
+  .tier-rf { background: rgba(255,255,255,0.07); color: var(--text3); }
+  .tier-hh { background: rgba(240,96,96,0.07); color: #e88080; }
+
+  .agent-name { font-family: var(--font-head); font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .agent-desc { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 14px; }
+  .agent-meta { display: flex; flex-direction: column; gap: 4px; }
+  .agent-meta-row { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; }
+  .meta-k { color: var(--text3); }
+  .meta-v { color: var(--text2); text-align: right; max-width: 160px; }
+
+  /* ---- SCENARIO ---- */
+  #scenario { background: var(--bg); }
+
+  .scenario-event {
+    border: 1px solid rgba(240,168,50,0.3); border-radius: 12px;
+    padding: 20px 24px; background: rgba(240,168,50,0.04);
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 40px;
+  }
+  .event-icon {
+    width: 42px; height: 42px; border-radius: 10px;
+    background: rgba(240,168,50,0.15); display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0;
+  }
+  .event-icon svg { width: 20px; height: 20px; stroke: var(--amber); fill: none; stroke-width: 1.5; }
+  .event-label { font-family: var(--font-mono); font-size: 11px; color: var(--amber); letter-spacing: 0.06em; margin-bottom: 4px; }
+  .event-text { font-family: var(--font-head); font-size: 17px; font-weight: 600; }
+
+  .timeline { position: relative; }
+  .tl-line {
+    position: absolute; left: 22px; top: 0; bottom: 0; width: 1px;
+    background: var(--border);
+  }
+
+  .tl-item { display: flex; gap: 24px; padding: 0 0 28px 56px; position: relative; }
+  .tl-dot {
+    position: absolute; left: 14px; top: 4px;
+    width: 17px; height: 17px; border-radius: 50%;
+    background: var(--bg3); border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .tl-dot-inner { width: 7px; height: 7px; border-radius: 50%; background: var(--text3); }
+  .tl-item:nth-child(2) .tl-dot-inner { background: var(--coral); }
+  .tl-item:nth-child(3) .tl-dot-inner { background: var(--accent); }
+  .tl-item:nth-child(4) .tl-dot-inner { background: var(--accent2); }
+  .tl-item:nth-child(5) .tl-dot-inner { background: var(--amber); }
+  .tl-item:nth-child(6) .tl-dot-inner { background: var(--purple); }
+  .tl-item:nth-child(7) .tl-dot-inner { background: rgba(240,96,96,0.5); }
+
+  .tl-meta { flex-shrink: 0; width: 130px; }
+  .tl-who { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
+  .tl-when { font-family: var(--font-mono); font-size: 11px; color: var(--text3); }
+  .tl-body { flex: 1; }
+  .tl-action { font-size: 14px; color: var(--text2); line-height: 1.6; }
+  .tl-action strong { color: var(--text); font-weight: 500; font-style: normal; }
+
+  /* ---- RESEARCH MODULES ---- */
+  #modules { background: var(--bg2); }
+
+  .modules-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .module-card {
+    border: 1px solid var(--border); border-radius: 12px; padding: 22px;
+    background: var(--bg3); position: relative; overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .module-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  .module-card.macro::before { background: var(--accent2); }
+  .module-card.banking::before { background: var(--purple); }
+  .module-card.forex::before { background: var(--accent); }
+  .module-card.crypto::before { background: var(--amber); }
+  .module-card.mgmt::before { background: var(--coral); }
+  .module-card.household::before { background: #e88080; }
+  .module-card:hover { border-color: var(--border2); }
+  .module-id { font-family: var(--font-mono); font-size: 11px; color: var(--text3); letter-spacing: 0.08em; margin-bottom: 10px; }
+  .module-name { font-family: var(--font-head); font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  .module-desc { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: 16px; }
+  .module-questions { list-style: none; }
+  .module-questions li { font-family: var(--font-mono); font-size: 11px; color: var(--text3); padding: 4px 0; border-top: 1px solid var(--border); line-height: 1.5; }
+
+  /* ---- ROADMAP ---- */
+  #roadmap { background: var(--bg); }
+
+  .roadmap-phases { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; }
+  .rm-phase {
+    border: 1px solid var(--border); border-right: none; padding: 24px 20px;
+    background: var(--bg2); position: relative;
+  }
+  .rm-phase:last-child { border-right: 1px solid var(--border); }
+  .rm-phase::after {
+    content: '';
+    position: absolute; top: 28px; right: -8px; z-index: 2;
+    border-left: 8px solid var(--border2);
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+  }
+  .rm-phase:last-child::after { display: none; }
+  .rm-phase.highlight { background: rgba(79,142,247,0.05); border-color: rgba(79,142,247,0.2); }
+  .rm-num { font-family: var(--font-mono); font-size: 11px; color: var(--text3); margin-bottom: 8px; letter-spacing: 0.06em; }
+  .rm-name { font-family: var(--font-head); font-size: 14px; font-weight: 600; margin-bottom: 4px; line-height: 1.3; }
+  .rm-time { font-family: var(--font-mono); font-size: 11px; color: var(--accent2); margin-bottom: 14px; }
+  .rm-items { list-style: none; }
+  .rm-items li { font-size: 12px; color: var(--text3); padding: 3px 0; line-height: 1.4; }
+  .rm-items li::before { content: '—'; margin-right: 6px; }
+
+  .papers-list { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 56px; }
+  .paper-row {
+    display: flex; align-items: flex-start; gap: 16px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px;
+    background: var(--bg2); transition: border-color 0.2s;
+  }
+  .paper-row:hover { border-color: var(--border2); }
+  .paper-num { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--accent); min-width: 28px; padding-top: 1px; }
+  .paper-body { flex: 1; }
+  .paper-title-text { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 4px; font-family: var(--font-head); }
+  .paper-venue { font-family: var(--font-mono); font-size: 11px; color: var(--text3); }
+  .paper-phase-badge { font-family: var(--font-mono); font-size: 10px; padding: 3px 8px; border-radius: 4px; background: rgba(79,142,247,0.1); color: var(--accent); white-space: nowrap; margin-top: 2px; }
+
+  /* ---- STACK ---- */
+  #stack { background: var(--bg2); }
+
+  .stack-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .stack-col-title { font-family: var(--font-mono); font-size: 11px; color: var(--text3); letter-spacing: 0.1em; margin-bottom: 16px; }
+  .stack-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .stack-item:last-child { border-bottom: none; }
+  .stack-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .stack-name { font-family: var(--font-mono); font-size: 13px; color: var(--text2); }
+  .stack-role { font-family: var(--font-mono); font-size: 11px; color: var(--text3); margin-left: auto; }
+
+  /* ---- CONTACT ---- */
+  #contact { background: var(--bg); padding-bottom: 60px; }
+
+  .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: start; }
+  .contact-left .section-body { max-width: 100%; }
+  .contact-links { display: flex; flex-direction: column; gap: 12px; margin-top: 32px; }
+  .contact-link {
+    display: flex; align-items: center; gap: 12px;
+    border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px;
+    text-decoration: none; color: var(--text2);
+    font-family: var(--font-mono); font-size: 13px;
+    transition: all 0.2s;
+    background: var(--bg2);
+  }
+  .contact-link:hover { border-color: var(--border2); color: var(--text); background: var(--bg3); }
+  .cl-icon { width: 20px; height: 20px; flex-shrink: 0; opacity: 0.6; }
+  .contact-right { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 32px; }
+  .cr-label { font-family: var(--font-mono); font-size: 11px; color: var(--text3); letter-spacing: 0.08em; margin-bottom: 6px; }
+  .cr-value { font-size: 15px; color: var(--text2); line-height: 1.7; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .cr-value:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+  .cr-value strong { color: var(--text); font-weight: 500; font-style: normal; }
+
+  /* ---- FOOTER ---- */
+  footer {
+    border-top: 1px solid var(--border); padding: 28px 40px;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 16px;
+  }
+  .footer-copy { font-family: var(--font-mono); font-size: 11px; color: var(--text3); }
+  .footer-links { display: flex; gap: 24px; }
+  .footer-links a { font-family: var(--font-mono); font-size: 11px; color: var(--text3); text-decoration: none; transition: color 0.2s; }
+  .footer-links a:hover { color: var(--text2); }
+
+  /* ---- ANIMATIONS ---- */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fade-up { animation: fadeUp 0.7s ease both; }
+  .delay-1 { animation-delay: 0.1s; }
+  .delay-2 { animation-delay: 0.2s; }
+  .delay-3 { animation-delay: 0.35s; }
+  .delay-4 { animation-delay: 0.5s; }
+
+  /* ---- RESPONSIVE ---- */
+  @media (max-width: 900px) {
+    nav { padding: 0 20px; }
+    .nav-links { display: none; }
+    section { padding: 70px 20px; }
+    .hero { padding: 100px 20px 70px; }
+    .concept-split, .contact-grid, .stack-grid { grid-template-columns: 1fr; gap: 40px; }
+    .roadmap-phases { grid-template-columns: 1fr; }
+    .rm-phase { border-right: 1px solid var(--border); }
+    .rm-phase::after { display: none; }
+    footer { padding: 24px 20px; flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">NEX<span>US</span></a>
+  <div class="nav-links">
+    <a href="#concept">Concept</a>
+    <a href="#agents">Agents</a>
+    <a href="#scenario">Scenario</a>
+    <a href="#modules">Modules</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="#contact">Contact</a>
+  </div>
+  <a href="https://github.com/Leotaby/nexus-sim" target="_blank" class="nav-cta">GitHub ↗</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-grid-bg"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-glow2"></div>
+  <div class="hero-inner">
+    <div class="hero-eyebrow fade-up">PhD Research Project · Economics &amp; Finance</div>
+    <h1 class="hero-title fade-up delay-1">
+      NEXUS<br>
+      <span class="line2">The Living</span><br>
+      <span class="line3">Synthetic Economy</span>
+    </h1>
+    <p class="hero-description fade-up delay-2">
+      A living synthetic economy of human agents,
+      <em>predicting markets from households to central banks</em>.
+      One million agents across seven tiers — each processing the same shock differently,
+      at a different speed, generating emergent exchange rates, banking crises,
+      and financial behavior that no single-agent model can reproduce.
+    </p>
+    <div class="hero-buttons fade-up delay-3">
+      <a href="#concept" class="btn-primary">Read the concept</a>
+      <a href="https://github.com/Leotaby/nexus-sim" target="_blank" class="btn-secondary">View on GitHub ↗</a>
+    </div>
+    <div class="hero-stats fade-up delay-4">
+      <div class="stat">
+        <div class="stat-num">7</div>
+        <div class="stat-label">Agent tiers</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">1M+</div>
+        <div class="stat-label">Household agents</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">5</div>
+        <div class="stat-label">Target papers</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">4yr</div>
+        <div class="stat-label">PhD timeline</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONCEPT -->
+<section id="concept">
+  <div class="section-inner">
+    <div class="section-label">What is NEXUS</div>
+    <h2 class="section-title">A scientific instrument, not a product</h2>
+    <div class="concept-split">
+      <div class="concept-left">
+        <p>
+          NEXUS is a <em>PhD research platform</em> for studying how macroeconomic phenomena
+          emerge from the collision of millions of heterogeneous decisions. It is not a trading
+          system, not a price predictor, and not a chatbot that reads news.
+        </p>
+        <p>
+          The central scientific question it attacks is the
+          <em>Meese-Rogoff Exchange Rate Disconnect Puzzle</em> — first documented in 1983,
+          still unresolved: why do macro fundamentals fail to predict short-run exchange rates,
+          yet dominate in the long run?
+        </p>
+        <p>
+          The hypothesis is that the answer lies in <em>agent heterogeneity</em>: hedge funds
+          process a Fed announcement in 2 minutes. Households in Naples process it 6 weeks
+          later through their electricity bill. That time-gap between tiers generates the
+          disconnect. NEXUS makes this mechanism visible and measurable.
+        </p>
+        <div class="concept-callout">
+          <div class="callout-label">Open puzzle — 40+ years unsolved</div>
+          <div class="callout-text">
+            "Empirical exchange rate models do not outperform a random walk at any
+            horizon up to one year."
+          </div>
+          <div class="callout-source">Meese &amp; Rogoff (1983) · Journal of International Economics</div>
+        </div>
+      </div>
+      <div class="concept-right">
+        <div class="vs-card">
+          <div class="vs-header">
+            <div class="vs-col-head theirs">MiroFish</div>
+            <div class="vs-col-head ours">NEXUS</div>
+          </div>
+          <div class="vs-row">
+            <div class="vs-cell theirs">Agents born from documents</div>
+            <div class="vs-cell ours">Agents calibrated from HFCS panel data</div>
+          </div>
+          <div class="vs-row">
+            <div class="vs-cell theirs">Simulates social media reaction</div>
+            <div class="vs-cell ours">Simulates financial market decisions</div>
+          </div>
+          <div class="vs-row">
+            <div class="vs-cell theirs">No economic identity</div>
+            <div class="vs-cell ours">Full identity: income, debt, savings, literacy</div>
+          </div>
+          <div class="vs-row">
+            <div class="vs-cell theirs">Population resets each run</div>
+            <div class="vs-cell ours">Persistent, evolving population</div>
+          </div>
+          <div class="vs-row">
+            <div class="vs-cell theirs">No empirical calibration</div>
+            <div class="vs-cell ours">System-GMM calibrated parameters</div>
+          </div>
+          <div class="vs-row">
+            <div class="vs-cell theirs">Not falsifiable</div>
+            <div class="vs-cell ours">Backtested against real crises</div>
+          </div>
+          <div class="vs-row">
+            <div class="vs-cell theirs">One domain: opinion</div>
+            <div class="vs-cell ours">Macro · Banking · FX · Crypto · Mgmt</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AGENT HIERARCHY -->
+<section id="agents">
+  <div class="section-inner">
+    <div class="section-label">The twin earth population</div>
+    <h2 class="section-title">Seven tiers. One world.</h2>
+    <p class="section-body">
+      Every agent has a distinct information set, time horizon, cognitive architecture, and
+      objective function. They are calibrated from real data sources — not hand-tuned. The
+      same macro shock hits all seven tiers simultaneously, but each tier processes it
+      differently and at a different speed.
+    </p>
+    <div class="agent-grid">
+      <div class="agent-card">
+        <div class="agent-tier-badge tier-cb">T1 · Sovereign</div>
+        <div class="agent-name">Central banks</div>
+        <div class="agent-desc">Fed, ECB, BoJ, BoE, SNB, PBoC. Set policy rates, conduct FX interventions, issue forward guidance. The macro event generators.</div>
+        <div class="agent-meta">
+          <div class="agent-meta-row"><span class="meta-k">Speed</span><span class="meta-v">Quarterly + continuous</span></div>
+          <div class="agent-meta-row"><span class="meta-k">Data source</span><span class="meta-v">FOMC transcripts, Taylor rule</span></div>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-tier-badge tier-hf">T2 · Institutional</div>
+        <div class="agent-name">Global macro hedge funds</div>
+        <div class="agent-desc">Bridgewater, Brevan Howard-type agents. Carry trades, momentum, macro fundamentals. Primary channel of fundamental price discovery.</div>
+        <div class="agent-meta">
+          <div class="agent-meta-row"><span class="meta-k">Speed</span><span class="meta-v">Minutes to days</span></div>
+          <div class="agent-meta-row"><span class="meta-k">Data source</span><span class="meta-v">CFTC CoT, 13F filings</span></div>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-tier-badge tier-bk">T3 · Intermediary</div>
+        <div class="agent-name">Commercial &amp; investment banks</div>
+        <div class="agent-desc">FX market makers. See aggregate client order flow before it hits the market — the private information advantage that creates short-run price pressure.</div>
+        <div class="agent-meta">
+          <div class="agent-meta-row"><span class="meta-k">Speed</span><span class="meta-v">Seconds to minutes</span></div>
+          <div class="agent-meta-row"><span class="meta-k">Data source</span><span class="meta-v">BIS triennial FX survey</span></div>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-tier-badge tier-am">T4 · Institutional</div>
+        <div class="agent-name">Institutional asset managers</div>
+        <div class="agent-desc">Pension funds, SWFs, insurance companies. Mechanical FX rebalancing when asset prices move. Slow but enormous — billions in systematic flows.</div>
+        <div class="agent-meta">
+          <div class="agent-meta-row"><span class="meta-k">Speed</span><span class="meta-v">Weekly to monthly</span></div>
+          <div class="agent-meta-row"><span class="meta-k">Data source</span><span class="meta-v">Pension FX hedge surveys</span></div>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-tier-badge tier-pf">T5 · Professional</div>
+        <div class="agent-name">Professional retail FX traders</div>
+        <div class="agent-desc">Technical analysis, economic calendars, macro commentary. High enough literacy to move markets at the margin, wrong often enough to lose systematically.</div>
+        <div class="agent-meta">
+          <div class="agent-meta-row"><span class="meta-k">Speed</span><span class="meta-v">Minutes to hours</span></div>
+          <div class="agent-meta-row"><span class="meta-k">Data source</span><span class="meta-v">OANDA/IG positioning data</span></div>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-tier-badge tier-rf">T6 · Retail</div>
+        <div class="agent-name">Ordinary retail FX traders</div>
+        <div class="agent-desc">Social media-driven, FOMO, loss-averse. Scientifically important: they provide the irrational component that allows persistent disconnect from fundamentals.</div>
+        <div class="agent-meta">
+          <div class="agent-meta-row"><span class="meta-k">Speed</span><span class="meta-v">Hours to days</span></div>
+          <div class="agent-meta-row"><span class="meta-k">Data source</span><span class="meta-v">ESMA retail loss statistics</span></div>
+        </div>
+      </div>
+      <div class="agent-card">
+        <div class="agent-tier-badge tier-hh">T7 · Household</div>
+        <div class="agent-name">Households &amp; real economy</div>
+        <div class="agent-desc">Never trade FX directly, but their savings, import consumption, and dollarization decisions ARE the macro fundamentals that eventually win. Closes the loop.</div>
+        <div class="agent-meta">
+          <div class="agent-meta-row"><span class="meta-k">Speed</span><span class="meta-v">Weeks to months</span></div>
+          <div class="agent-meta-row"><span class="meta-k">Data source</span><span class="meta-v">ECB HFCS, payment data</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCENARIO -->
+<section id="scenario">
+  <div class="section-inner">
+    <div class="section-label">Live scenario trace</div>
+    <h2 class="section-title">Fed raises real rate +75bps</h2>
+    <p class="section-body">
+      A single macro event propagates through all seven tiers over twelve weeks.
+      This is the core scientific output — not a price forecast, but a mechanistic
+      trace of how each tier amplifies, delays, or corrects the FX response.
+    </p>
+
+    <div class="scenario-event">
+      <div class="event-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      </div>
+      <div>
+        <div class="event-label">Macro shock injected · t = 0</div>
+        <div class="event-text">Federal Reserve raises federal funds rate by 75bps. Forward guidance signals two additional hikes. FX intervention desk activated.</div>
+      </div>
+    </div>
+
+    <div class="timeline">
+      <div class="tl-line"></div>
+      <div class="tl-item">
+        <div class="tl-dot"><div class="tl-dot-inner"></div></div>
+        <div class="tl-meta"><div class="tl-who">Hedge funds</div><div class="tl-when">t = 2 min</div></div>
+        <div class="tl-body"><div class="tl-action"><strong>Carry unwind.</strong> Short JPY/USD positions liquidated instantly. Broad USD buying begins. Price: USD +0.8% in first five minutes. Long-USD momentum positions accumulate.</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot"><div class="tl-dot-inner"></div></div>
+        <div class="tl-meta"><div class="tl-who">Bank FX desks</div><div class="tl-when">t = 3–10 min</div></div>
+        <div class="tl-body"><div class="tl-action"><strong>Spread widening.</strong> Bid-ask spreads widen to manage inventory risk. Client flow floods in — all USD buys. Banks capture spread, then accommodate flow. USD +1.3%.</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot"><div class="tl-dot-inner"></div></div>
+        <div class="tl-meta"><div class="tl-who">Asset managers</div><div class="tl-when">t = 1–3 days</div></div>
+        <div class="tl-body"><div class="tl-action"><strong>Mechanical rebalancing.</strong> Rate hike triggers bond price drop. Portfolio allocation shifts. FX hedges require systematic USD buying — ~$40B over 3 days. Amplifies initial move.</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot"><div class="tl-dot-inner"></div></div>
+        <div class="tl-meta"><div class="tl-who">Pro retail</div><div class="tl-when">t = 30 min–2 days</div></div>
+        <div class="tl-body"><div class="tl-action"><strong>Trend chasing.</strong> USD breaks resistance levels on charts. Long USD entries accumulate. Social media fills with bullish commentary. Noise increases.</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot"><div class="tl-dot-inner"></div></div>
+        <div class="tl-meta"><div class="tl-who">Retail FX</div><div class="tl-when">t = 1–5 days</div></div>
+        <div class="tl-body"><div class="tl-action"><strong>FOMO and panic.</strong> Half pile into USD long on headlines. Others short USD because "it moved too much." Retail losses increase. Price dispersion widens.</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot"><div class="tl-dot-inner"></div></div>
+        <div class="tl-meta"><div class="tl-who">Households</div><div class="tl-when">t = 2–12 wks</div></div>
+        <div class="tl-body"><div class="tl-action"><strong>The fundamental response begins.</strong> Higher US rates attract European household savings. Exporters revise hedging. Import costs rise, real consumption adjusts. <em>This is what eventually corrects the overshoot</em> — the disconnect closes from the bottom up.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RESEARCH MODULES -->
+<section id="modules">
+  <div class="section-inner">
+    <div class="section-label">Research branches</div>
+    <h2 class="section-title">Six connected modules</h2>
+    <p class="section-body">
+      All modules share the same synthetic population and agent infrastructure. Each one
+      generates one PhD paper. Together they form a complete theory of how macro shocks
+      propagate through every layer of the financial system.
+    </p>
+    <div class="modules-grid">
+      <div class="module-card macro">
+        <div class="module-id">M1 · MACRO</div>
+        <div class="module-name">Macroeconomics &amp; policy</div>
+        <div class="module-desc">How policy transmission works when agents have heterogeneous priors, different information sets, and update at different speeds.</div>
+        <ul class="module-questions">
+          <li>Does forward guidance anchor expectations heterogeneously?</li>
+          <li>Is the fiscal multiplier a function of wealth distribution?</li>
+        </ul>
+      </div>
+      <div class="module-card banking">
+        <div class="module-id">M2 · BANKING</div>
+        <div class="module-name">Banking &amp; systemic risk</div>
+        <div class="module-desc">Bank run dynamics, interbank contagion, and credit cycles as emergent properties of individual bank and household decisions.</div>
+        <ul class="module-questions">
+          <li>Can SVB bank run dynamics be replicated from household social media reaction?</li>
+          <li>What capital ratio threshold prevents contagion?</li>
+        </ul>
+      </div>
+      <div class="module-card forex">
+        <div class="module-id">M3 · FOREX</div>
+        <div class="module-name">Foreign exchange markets</div>
+        <div class="module-desc">The core module. Exchange rate disconnect, overshooting, and fundamental convergence emerge from the seven-tier agent hierarchy.</div>
+        <ul class="module-questions">
+          <li>Can heterogeneous information processing resolve Meese-Rogoff?</li>
+          <li>Which tier drives the overshoot and which corrects it?</li>
+        </ul>
+      </div>
+      <div class="module-card crypto">
+        <div class="module-id">M4 · CRYPTO</div>
+        <div class="module-name">Crypto &amp; DeFi</div>
+        <div class="module-desc">Crypto adoption as household portfolio substitution. Stablecoin depegging, liquidity crises, and Bitcoin as EM safe-haven asset.</div>
+        <ul class="module-questions">
+          <li>Does crypto adoption follow epidemic contagion dynamics?</li>
+          <li>Can a stablecoin depeg trigger retail bank withdrawal cascades?</li>
+        </ul>
+      </div>
+      <div class="module-card mgmt">
+        <div class="module-id">M5 · MANAGEMENT</div>
+        <div class="module-name">Business &amp; organizations</div>
+        <div class="module-desc">Firms as employers within the household population. Credit tightening, hiring, firm survival, and market concentration as emergent phenomena.</div>
+        <ul class="module-questions">
+          <li>How do credit crunches cascade into small business failures?</li>
+          <li>Does market concentration emerge from repeated recessions?</li>
+        </ul>
+      </div>
+      <div class="module-card household">
+        <div class="module-id">M6 · HOUSEHOLD</div>
+        <div class="module-name">Household financial behavior</div>
+        <div class="module-desc">The backbone layer. Income heterogeneity, financial literacy, dollarization in EM households, and the real-economy feedback loop.</div>
+        <ul class="module-questions">
+          <li>Does financial literacy level predict crisis amplification?</li>
+          <li>When does EM household fear tip into currency crisis?</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section id="roadmap">
+  <div class="section-inner">
+    <div class="section-label">Project timeline</div>
+    <h2 class="section-title">Four years. Five phases.</h2>
+    <p class="section-body">
+      Phase 0 begins immediately — the PhD proposal and initial codebase are the first
+      deliverables. Each subsequent phase adds one module and produces one peer-reviewed paper.
+    </p>
+
+    <div class="roadmap-phases">
+      <div class="rm-phase highlight">
+        <div class="rm-num">P0 · NOW</div>
+        <div class="rm-name">Foundation</div>
+        <div class="rm-time">Months 1–4</div>
+        <ul class="rm-items">
+          <li>PhD application (GSEFM)</li>
+          <li>Synthetic population engine</li>
+          <li>Agent hierarchy v0.1</li>
+          <li>GitHub + site live</li>
+          <li>SSRN preprint</li>
+        </ul>
+      </div>
+      <div class="rm-phase">
+        <div class="rm-num">P1</div>
+        <div class="rm-name">Core engine</div>
+        <div class="rm-time">Months 5–12</div>
+        <ul class="rm-items">
+          <li>FX order book module</li>
+          <li>News injection API</li>
+          <li>CB agent reaction fns</li>
+          <li>2022 cycle backtest</li>
+          <li>Paper 1 draft</li>
+        </ul>
+      </div>
+      <div class="rm-phase">
+        <div class="rm-num">P2</div>
+        <div class="rm-name">Macro-FX disconnect</div>
+        <div class="rm-time">Year 2</div>
+        <ul class="rm-items">
+          <li>Meese-Rogoff formalization</li>
+          <li>Banking module v1</li>
+          <li>SNB 2015 replication</li>
+          <li>Paper 2 (JME target)</li>
+        </ul>
+      </div>
+      <div class="rm-phase">
+        <div class="rm-num">P3</div>
+        <div class="rm-name">Crypto &amp; households</div>
+        <div class="rm-time">Year 3</div>
+        <ul class="rm-items">
+          <li>Crypto market module</li>
+          <li>EM dollarization model</li>
+          <li>Business mgmt module</li>
+          <li>Papers 3 &amp; 4</li>
+        </ul>
+      </div>
+      <div class="rm-phase">
+        <div class="rm-num">P4</div>
+        <div class="rm-name">Policy sandbox</div>
+        <div class="rm-time">Year 4</div>
+        <ul class="rm-items">
+          <li>CBDC counterfactual</li>
+          <li>DiD eval framework</li>
+          <li>Paper 5 · Dissertation</li>
+          <li>Open-source release</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="papers-list">
+      <div class="paper-row">
+        <div class="paper-num">P1</div>
+        <div class="paper-body">
+          <div class="paper-title-text">NEXUS: A calibrated multi-agent framework for heterogeneous FX market dynamics</div>
+          <div class="paper-venue">Target: Journal of Economic Dynamics and Control · Journal of Financial Markets</div>
+        </div>
+        <div class="paper-phase-badge">Phase 1</div>
+      </div>
+      <div class="paper-row">
+        <div class="paper-num">P2</div>
+        <div class="paper-body">
+          <div class="paper-title-text">Resolving the exchange rate disconnect via heterogeneous agent information processing</div>
+          <div class="paper-venue">Target: Journal of Monetary Economics · American Economic Review</div>
+        </div>
+        <div class="paper-phase-badge">Phase 2</div>
+      </div>
+      <div class="paper-row">
+        <div class="paper-num">P3</div>
+        <div class="paper-body">
+          <div class="paper-title-text">Currency substitution as emergent behavior: household heterogeneity and dollarization</div>
+          <div class="paper-venue">Target: Journal of International Economics · IMF Economic Review</div>
+        </div>
+        <div class="paper-phase-badge">Phase 3</div>
+      </div>
+      <div class="paper-row">
+        <div class="paper-num">P4</div>
+        <div class="paper-body">
+          <div class="paper-title-text">Crypto adoption dynamics and the disruption of monetary transmission</div>
+          <div class="paper-venue">Target: Journal of Financial Economics · Review of Financial Studies</div>
+        </div>
+        <div class="paper-phase-badge">Phase 3</div>
+      </div>
+      <div class="paper-row">
+        <div class="paper-num">P5</div>
+        <div class="paper-body">
+          <div class="paper-title-text">Digital currencies and policy counterfactuals: a simulation-based evaluation</div>
+          <div class="paper-venue">Target: Economic Policy · Journal of Policy Modeling</div>
+        </div>
+        <div class="paper-phase-badge">Phase 4</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TECH STACK -->
+<section id="stack">
+  <div class="section-inner">
+    <div class="section-label">Technical architecture</div>
+    <h2 class="section-title">Built on solid foundations</h2>
+    <div class="stack-grid">
+      <div>
+        <div class="stack-col-title">SIMULATION LAYER</div>
+        <div class="stack-item"><div class="stack-dot" style="background:#4f8ef7"></div><span class="stack-name">OASIS (CAMEL-AI)</span><span class="stack-role">1M+ agent runtime</span></div>
+        <div class="stack-item"><div class="stack-dot" style="background:#2dd4a0"></div><span class="stack-name">LangChain / Claude API</span><span class="stack-role">Agent cognition</span></div>
+        <div class="stack-item"><div class="stack-dot" style="background:#9b7ff4"></div><span class="stack-name">Zep Cloud</span><span class="stack-role">Long-term agent memory</span></div>
+        <div class="stack-item"><div class="stack-dot" style="background:#f0a832"></div><span class="stack-name">Neo4j + GraphRAG</span><span class="stack-role">Knowledge graph</span></div>
+        <div class="stack-item"><div class="stack-dot" style="background:#f06060"></div><span class="stack-name">FastAPI + Celery</span><span class="stack-role">Async execution</span></div>
+      </div>
+      <div>
+        <div class="stack-col-title">ECONOMETRIC CALIBRATION</div>
+        <div class="stack-item"><div class="stack-dot" style="background:#4f8ef7"></div><span class="stack-name">System-GMM (Blundell-Bond)</span><span class="stack-role">Agent parameter estimation</span></div>
+        <div class="stack-item"><div class="stack-dot" style="background:#2dd4a0"></div><span class="stack-name">ECB HFCS panel data</span><span class="stack-role">Household calibration</span></div>
+        <div class="stack-item"><div class="stack-dot" style="background:#9b7ff4"></div><span class="stack-name">CFTC CoT data</span><span class="stack-role">Hedge fund calibration</span></div>
+        <div class="stack-item"><div class="stack-dot" style="background:#f0a832"></div><span class="stack-name">Stata / Python (linearmodels)</span><span class="stack-role">Panel estimation</span></div>
+        <div class="stack-item"><div class="stack-dot" style="background:#f06060"></div><span class="stack-name">Vue.js + D3.js</span><span class="stack-role">Simulation dashboard</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="section-inner">
+    <div class="section-label">Contact &amp; collaboration</div>
+    <div class="contact-grid">
+      <div class="contact-left">
+        <h2 class="section-title">Open to collaboration</h2>
+        <p class="section-body">
+          NEXUS is a PhD research project. I am open to academic collaboration,
+          data sharing agreements, and early access requests for research institutions
+          and central banks. The platform will be released open-source upon dissertation completion.
+        </p>
+        <div class="contact-links">
+          <a href="https://github.com/Leotaby/nexus-sim" target="_blank" class="contact-link">
+            <svg class="cl-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            github.com/Leotaby/nexus-sim
+          </a>
+          <a href="/cdn-cgi/l/email-protection#aec6cfdacbc880dacfcccccfc5c6c7cfc0eedddadbcacbc0dac780dbc0c7c0cf80c7da" class="contact-link">
+            <svg class="cl-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            <span class="__cf_email__" data-cfemail="9df5fce9f8fbb3e9fcfffffcf6f5f4fcf3ddeee9e8f9f8f3e9f4b3e8f3f4f3fcb3f4e9">[email&#160;protected]</span>
+          </a>
+        </div>
+      </div>
+      <div class="contact-right">
+        <div class="cr-label">RESEARCHER</div>
+        <div class="cr-value"><strong>Hatef (Leo) Tabbakhian</strong><br>MSc Economics &amp; Finance, University of Naples Federico II<br>AI Training Expert, Catalyst by Outlier</div>
+        <div class="cr-label">BACKGROUND</div>
+        <div class="cr-value">System-GMM econometrics · Panel data (Eurozone banking) · Credit risk modeling (KPMG) · Computational finance</div>
+        <div class="cr-label">TARGET INSTITUTION</div>
+        <div class="cr-value"><strong>GSEFM — Goethe University Frankfurt</strong><br>PhD in Economics · May 2026 deadline<br>Affiliated: SAFE (Sustainable Architecture for Finance in Europe)</div>
+        <div class="cr-label">STATUS</div>
+        <div class="cr-value" style="border:none;margin:0;padding:0;"><strong>Phase 0 — active</strong><br>Codebase initialization · PhD application in progress</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-copy">© 2026 NEXUS Project · Hatef Tabbakhian · AGPL-3.0</div>
+  <div class="footer-links">
+    <a href="https://github.com/Leotaby/nexus-sim" target="_blank">GitHub</a>
+    <a hr
