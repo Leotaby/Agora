@@ -155,7 +155,7 @@ nexus-sim/
 ## Academic context
 
 PhD candidate: **Hatef (Leo) Tabbakhian**
-Target programme: GSEFM — Goethe University Frankfurt (May 2026)
+Target programme: GSEFM - Goethe University Frankfurt (May 2026)
 Background: MSc Economics & Finance (Federico II), System-GMM econometrics, KPMG credit risk
 
 The simulation engine architecture is inspired by [OASIS](https://github.com/camel-ai/oasis) (CAMEL-AI).
@@ -164,4 +164,4 @@ The simulation engine architecture is inspired by [OASIS](https://github.com/cam
 
 ## License
 
-AGPL-3.0 — same as MiroFish. Derivative works must be open-sourced.
+AGPL-3.0 - same as MiroFish. Derivative works must be open-sourced.
