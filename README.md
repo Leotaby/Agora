@@ -3,7 +3,7 @@
 **Heterogeneous-agent simulation of exchange rate dynamics with LLM-driven cognition**
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![LLM-powered](https://img.shields.io/badge/LLM-powered-D97757?style=flat-square)](https://github.com/Leotaby/nexus-sim)
+[![Agent-based](https://img.shields.io/badge/Agent--based-285%20agents-D97757?style=flat-square)](https://github.com/Leotaby/nexus-sim)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Vue 3](https://img.shields.io/badge/Vue-3.4-4FC08D?style=flat-square&logo=vuedotjs&logoColor=white)](https://vuejs.org)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-purple?style=flat-square)](LICENSE)
