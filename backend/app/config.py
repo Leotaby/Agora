@@ -11,11 +11,8 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # LLM
-    LLM_API_KEY: str = ""
-    LLM_BASE_URL: str = "https://api.anthropic.com/v1"
-    LLM_MODEL_NAME: str = "claude-sonnet-4-6"
-    ANTHROPIC_API_KEY: str = ""
+    # LLM (model used by claude -p subprocess calls)
+    LLM_MODEL_NAME: str = "claude-haiku-4-5-20251001"
 
     # Memory
     ZEP_API_KEY: str = ""

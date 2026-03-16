@@ -248,7 +248,7 @@ def main():
                            help=f"Inject {key} shock")
     parser.add_argument("--hh",     type=int, default=50,  help="Households per major country")
     parser.add_argument("--rounds", type=int, default=6,   help="Simulation rounds")
-    parser.add_argument("--llm",    action="store_true",   help="Use real LLM")
+    parser.add_argument("--no-llm", action="store_true",   help="Use stub reactions instead of real LLM")
     parser.add_argument("--seed",   type=int, default=42)
     args = parser.parse_args()
 
@@ -279,7 +279,7 @@ def main():
         shocks=[shock],
         num_rounds=args.rounds,
     )
-    runner = SimulationRunner(use_llm=args.llm)
+    runner = SimulationRunner(use_llm=not args.no_llm)
     asyncio.run(runner.run(simulation, verbose=True))
 
     # Post-shock world state update (macro impact)

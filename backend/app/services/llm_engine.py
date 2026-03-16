@@ -1,10 +1,10 @@
 """
-LLM Engine - replaces the stub in run_forex_simulation.py with real
-Claude API calls. Each HumanTwin agent reasons through a macro shock
-using its own prompt context (tier role + economic profile).
+LLM Engine - drives real Claude reasoning for each HumanTwin agent.
 
+Uses the `claude` CLI in print mode (`claude -p`) so that no API key
+is needed — Claude Code's built-in authentication handles everything.
 
-Each agent call = one LLM inference with a distinct system prompt
+Each agent call = one `claude -p` subprocess with a distinct prompt
 encoding the agent's cognitive architecture and economic identity.
 """
 from __future__ import annotations
@@ -12,9 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
-from typing import Optional
-
-import anthropic
+import subprocess
 
 from app.config import settings
 from app.models.agent import HumanTwin, AgentTier
@@ -170,12 +168,12 @@ usd_delta: -0.05 to +0.05 (very small, gradual shifts in savings allocation)
 
 class LLMEngine:
     """
-    Wraps the Anthropic API to generate agent reactions.
-    Each call produces a single AgentReaction from one HumanTwin agent.
+    Drives agent reasoning via the `claude` CLI in print mode.
+    No API key needed — uses Claude Code's built-in authentication.
+    Each call spawns `claude -p` with the agent's full prompt.
     """
 
     def __init__(self):
-        self.client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
         self.model = settings.LLM_MODEL_NAME
 
     def _build_user_prompt(self, agent: HumanTwin, shock: MacroShock, round_num: int) -> str:
@@ -193,6 +191,12 @@ Based on your profile and cognitive architecture, how do you react to this event
 Remember: you must respond ONLY with valid JSON. No prose, no markdown, no explanation outside the JSON.
         """.strip()
 
+    def _build_full_prompt(self, agent: HumanTwin, shock: MacroShock, round_num: int) -> str:
+        """Combine system prompt + user message into a single prompt for claude -p."""
+        system = TIER_SYSTEM_PROMPTS[agent.tier].strip()
+        user = self._build_user_prompt(agent, shock, round_num)
+        return f"{system}\n\n---\n\n{user}"
+
     def react(
         self,
         agent: HumanTwin,
@@ -201,20 +205,21 @@ Remember: you must respond ONLY with valid JSON. No prose, no markdown, no expla
         max_tokens: int = 400,
     ) -> AgentReaction:
         """
-        Synchronous single-agent reaction call.
-        Returns an AgentReaction with the agent's reasoning and decision.
+        Synchronous single-agent reaction via claude CLI.
         """
-        system_prompt = TIER_SYSTEM_PROMPTS[agent.tier]
-        user_prompt = self._build_user_prompt(agent, shock, round_num)
+        prompt = self._build_full_prompt(agent, shock, round_num)
 
         try:
-            message = self.client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_prompt}],
+            result = subprocess.run(
+                ["claude", "-p", "--model", self.model],
+                input=prompt,
+                capture_output=True,
+                text=True,
+                timeout=120,
             )
-            raw = message.content[0].text.strip()
+            if result.returncode != 0:
+                raise RuntimeError(result.stderr[:200])
+            raw = result.stdout.strip()
             data = self._parse_response(raw)
 
             return AgentReaction(
@@ -229,7 +234,6 @@ Remember: you must respond ONLY with valid JSON. No prose, no markdown, no expla
             )
 
         except Exception as e:
-            # Graceful degradation: log error, return neutral reaction
             return AgentReaction(
                 agent_id=agent.agent_id,
                 tier=agent.tier,
@@ -247,9 +251,47 @@ Remember: you must respond ONLY with valid JSON. No prose, no markdown, no expla
         shock: MacroShock,
         round_num: int,
     ) -> AgentReaction:
-        """Async version - use for parallel batch processing."""
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.react, agent, shock, round_num)
+        """Async version using async subprocess for parallel batch processing."""
+        prompt = self._build_full_prompt(agent, shock, round_num)
+
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "claude", "-p", "--model", self.model,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(input=prompt.encode()),
+                timeout=120,
+            )
+            if proc.returncode != 0:
+                raise RuntimeError(stderr.decode()[:200])
+            raw = stdout.decode().strip()
+            data = self._parse_response(raw)
+
+            return AgentReaction(
+                agent_id=agent.agent_id,
+                tier=agent.tier,
+                round_num=round_num,
+                shock_id=shock.shock_id,
+                reasoning=data.get("reasoning", ""),
+                action=data.get("action", "hold"),
+                usd_delta=float(data.get("usd_delta", 0.0)),
+                sentiment=float(data.get("sentiment", 0.0)),
+            )
+
+        except Exception as e:
+            return AgentReaction(
+                agent_id=agent.agent_id,
+                tier=agent.tier,
+                round_num=round_num,
+                shock_id=shock.shock_id,
+                reasoning=f"[LLM ERROR] {str(e)[:120]}",
+                action="hold",
+                usd_delta=0.0,
+                sentiment=0.0,
+            )
 
     async def react_batch(
         self,
@@ -260,8 +302,7 @@ Remember: you must respond ONLY with valid JSON. No prose, no markdown, no expla
     ) -> list[AgentReaction]:
         """
         Process a batch of agents concurrently.
-        concurrency controls max parallel LLM calls to avoid rate limits.
-        Runs agents concurrently with a semaphore.
+        concurrency controls max parallel claude -p subprocesses.
         """
         semaphore = asyncio.Semaphore(concurrency)
 
@@ -278,9 +319,7 @@ Remember: you must respond ONLY with valid JSON. No prose, no markdown, no expla
         Parse JSON from LLM response.
         Handles common LLM formatting issues: markdown fences, trailing text.
         """
-        # Strip markdown code fences if present
         raw = re.sub(r"```(?:json)?", "", raw).strip().rstrip("`").strip()
-        # Extract first JSON object
         match = re.search(r"\{.*\}", raw, re.DOTALL)
         if match:
             try:
@@ -297,7 +336,7 @@ Remember: you must respond ONLY with valid JSON. No prose, no markdown, no expla
 def demo_single_agent_reaction(tier: AgentTier = AgentTier.MACRO_HEDGE_FUND) -> None:
     """
     Quick demo: spawn one agent of the given tier, inject a Fed hike, print reaction.
-    Requires ANTHROPIC_API_KEY in environment.
+    Uses claude CLI — no API key needed.
     """
     from app.models.shock import fed_rate_hike_75bps
     from app.services.agent_factory import AgentFactory
