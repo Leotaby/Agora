@@ -1,12 +1,9 @@
 """
-NEXUS = HumanTwin
-services/llm_engine.py
-
-LLM Engine — replaces the stub in run_forex_simulation.py with real
+LLM Engine - replaces the stub in run_forex_simulation.py with real
 Claude API calls. Each HumanTwin agent reasons through a macro shock
 using its own prompt context (tier role + economic profile).
 
-This is the core intelligence layer of NEXUS.
+
 Each agent call = one LLM inference with a distinct system prompt
 encoding the agent's cognitive architecture and economic identity.
 """
@@ -60,7 +57,7 @@ You actively run carry trades, momentum strategies, and fundamental macro positi
 When responding to a macro event:
 1. What does this mean for your existing carry trades?
 2. Does this change your macro thesis?
-3. What is your immediate position adjustment (size matters — you move markets)?
+3. What is your immediate position adjustment (size matters - you move markets)?
 4. What is your medium-term view (3-month horizon)?
 
 Respond ONLY with valid JSON:
@@ -89,7 +86,7 @@ usd_delta: -0.3 to +0.3 (inventory positions, not directional bets)
     AgentTier.INSTITUTIONAL_AM: """
 You are an institutional asset manager (pension fund/SWF) in the NEXUS simulation.
 You manage a large portfolio with liability-matching constraints.
-You rebalance FX exposure MECHANICALLY when asset prices change — not based on views.
+You rebalance FX exposure MECHANICALLY when asset prices change - not based on views.
 Your FX decisions are driven by your asset allocation model and hedge ratios.
 
 When responding to a macro event:
@@ -112,7 +109,7 @@ You trade with leverage (up to 30:1) but are systematically loss-averse.
 When responding to a macro event:
 1. What does your technical analysis tell you (levels, breakouts)?
 2. Is this consistent with the macro narrative you follow?
-3. What is your trade entry (with size — you trade EUR/USD, USD/JPY)?
+3. What is your trade entry (with size - you trade EUR/USD, USD/JPY)?
 4. What are your stop-loss and take-profit levels?
 
 Consider your financial literacy score when reasoning.
@@ -151,7 +148,7 @@ You do NOT trade FX directly. Your decisions affect exchange rates indirectly th
 - Dollarization behavior (in high-inflation environments)
 - Mortgage and debt servicing (does this affect your disposable income?)
 
-You process macro events SLOWLY — you feel them through your electricity bill,
+You process macro events SLOWLY - you feel them through your electricity bill,
 supermarket prices, and mortgage rate changes, NOT through Bloomberg terminals.
 Your information comes from TV news, neighbors, and daily price experience.
 
@@ -250,7 +247,7 @@ Remember: you must respond ONLY with valid JSON. No prose, no markdown, no expla
         shock: MacroShock,
         round_num: int,
     ) -> AgentReaction:
-        """Async version — use for parallel batch processing."""
+        """Async version - use for parallel batch processing."""
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self.react, agent, shock, round_num)
 
@@ -264,7 +261,7 @@ Remember: you must respond ONLY with valid JSON. No prose, no markdown, no expla
         """
         Process a batch of agents concurrently.
         concurrency controls max parallel LLM calls to avoid rate limits.
-        MiroFish calls this "parallel simulation" — we do the same.
+        Runs agents concurrently with a semaphore.
         """
         semaphore = asyncio.Semaphore(concurrency)
 

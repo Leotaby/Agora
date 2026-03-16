@@ -1,10 +1,8 @@
 """
-NEXUS = HumanTwin
-simulation.py — Simulation session model
+simulation.py - Simulation session model
 
 Tracks the state of a running or completed simulation:
 agents, shocks injected, round history, and results.
-Equivalent to MiroFish's task.py / project.py combined.
 """
 from __future__ import annotations
 from dataclasses import dataclass, field
@@ -28,7 +26,6 @@ class SimulationStatus(str, Enum):
 class AgentReaction:
     """
     The response of a single agent to a shock in a given round.
-    This is the atomic unit of simulation output.
     """
     agent_id: str
     tier: AgentTier

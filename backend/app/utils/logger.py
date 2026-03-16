@@ -1,11 +1,6 @@
 """
-NEXUS = HumanTwin
-utils/logger.py
-
-Action logger — records every agent decision to disk as JSONL.
-Mirrors MiroFish's action_logger.py pattern but structured
-for economic data: each log entry is a timestamped AgentReaction
-with the full agent profile snapshot.
+Action logger - records every agent decision to disk as JSONL.
+Writes agent reactions to JSONL. Each entry includes the full agent snapshot.
 
 Log file format: one JSON object per line (JSONL)
 Location: logs/simulation_{id}_{date}.jsonl

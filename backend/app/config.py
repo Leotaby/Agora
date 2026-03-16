@@ -1,5 +1,5 @@
 """
-NEXUS configuration — all env vars via pydantic Settings
+NEXUS configuration - all env vars via pydantic Settings
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

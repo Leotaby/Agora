@@ -1,9 +1,4 @@
 """
-NEXUS = HumanTwin
-scripts/action_logger.py
-
-Standalone action logger script — mirrors MiroFish's action_logger.py.
-
 Runs a simulation and writes the full action log to JSONL.
 The JSONL output is the raw material for:
   - Panel econometric analysis in Stata/Python

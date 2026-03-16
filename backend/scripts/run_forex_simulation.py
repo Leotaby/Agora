@@ -1,12 +1,11 @@
 """
-NEXUS = HumanTwin
 run_forex_simulation.py
 
 THE FIRST RUNNABLE SCRIPT.
 
 Spawns a small population of agents across all 7 tiers,
 injects a Fed rate hike shock, and prints each tier's reaction.
-No LLM calls yet — this validates the data model and population generator.
+No LLM calls yet - this validates the data model and population generator.
 
 Run from /backend:
     uv run python scripts/run_forex_simulation.py
@@ -59,7 +58,7 @@ def make_macro_hf(name: str = "GlobalMacro Fund A") -> HumanTwin:
 
 def make_commercial_bank() -> HumanTwin:
     return HumanTwin(
-        name="FX Desk — Major Bank",
+        name="FX Desk - Major Bank",
         tier=AgentTier.COMMERCIAL_BANK,
         country="US",
         financial_literacy=0.97,
@@ -132,7 +131,7 @@ def make_household(rng: random.Random) -> HumanTwin:
             RiskTolerance.HIGH
         ),
         loss_aversion=rng.uniform(1.5, 4.0),
-        information_speed=literacy * 0.2,   # households are SLOW — max 20% speed
+        information_speed=literacy * 0.2,   # households are SLOW - max 20% speed
         usd_exposure=rng.uniform(0.0, 0.1),
         eur_exposure=rng.uniform(0.7, 1.0),
         crypto_exposure=rng.uniform(0.0, 0.05),
@@ -145,31 +144,31 @@ def build_population(n_households: int = 20, seed: int = 42) -> list[HumanTwin]:
     rng = random.Random(seed)
     agents: list[HumanTwin] = []
 
-    # Tier 1 — 2 central banks
+    # Tier 1 - 2 central banks
     agents.append(make_central_bank("US"))
     agents.append(make_central_bank("EU"))
 
-    # Tier 2 — 3 hedge funds
+    # Tier 2 - 3 hedge funds
     for name in ["GlobalMacro Fund A", "EM Macro Partners", "Systematic Alpha"]:
         agents.append(make_macro_hf(name))
 
-    # Tier 3 — 2 commercial banks
+    # Tier 3 - 2 commercial banks
     for _ in range(2):
         agents.append(make_commercial_bank())
 
-    # Tier 4 — 2 institutional AMs
+    # Tier 4 - 2 institutional AMs
     for _ in range(2):
         agents.append(make_institutional_am())
 
-    # Tier 5 — 5 professional retail
+    # Tier 5 - 5 professional retail
     for _ in range(5):
         agents.append(make_professional_retail(rng))
 
-    # Tier 6 — 10 ordinary retail
+    # Tier 6 - 10 ordinary retail
     for _ in range(10):
         agents.append(make_ordinary_retail(rng))
 
-    # Tier 7 — N households
+    # Tier 7 - N households
     for _ in range(n_households):
         agents.append(make_household(rng))
 
@@ -226,7 +225,7 @@ def simulate_tier_reaction(agent: HumanTwin, shock: MacroShock, round_num: int) 
 def main():
     console.print(Panel.fit(
         "[bold cyan]NEXUS = HumanTwin[/bold cyan]\n"
-        "[dim]First forex simulation — population validation run[/dim]",
+        "[dim]First forex simulation - population validation run[/dim]",
         border_style="cyan"
     ))
 

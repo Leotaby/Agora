@@ -1,15 +1,11 @@
 """
-NEXUS = HumanTwin
-services/simulation_runner.py
-
 Orchestrates a full simulation:
   1. Build population (AgentFactory)
   2. For each round: filter agents by tier delay, call LLMEngine in batch
   3. Aggregate results into RoundResult
   4. Return completed Simulation
 
-This is the equivalent of MiroFish's run_parallel_simulation.py logic
-but structured as a reusable service callable from both scripts and the API.
+Reusable service callable from scripts and the API.
 """
 from __future__ import annotations
 
@@ -186,7 +182,7 @@ class SimulationRunner:
 
 
 # ------------------------------------------------------------------
-# Convenience builder — quick simulation from a shock
+# Convenience builder - quick simulation from a shock
 # ------------------------------------------------------------------
 
 def quick_simulation(

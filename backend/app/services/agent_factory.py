@@ -1,17 +1,14 @@
 """
-NEXUS = HumanTwin
-services/agent_factory.py
-
-Population factory — spawns calibrated HumanTwin agents.
+Population factory - spawns calibrated HumanTwin agents.
 
 Calibration sources per tier:
-  T1  Central banks    — mandate parameters from Taylor rule literature
-  T2  Macro HFs        — CFTC Commitment of Traders positioning data
-  T3  Commercial banks — BIS Triennial FX Survey
-  T4  Institutional AM — Pension FX hedging surveys
-  T5  Professional FX  — OANDA/IG client positioning statistics
-  T6  Ordinary retail  — ESMA retail trader loss reports
-  T7  Households       — ECB Household Finance and Consumption Survey (HFCS)
+  T1  Central banks    - mandate parameters from Taylor rule literature
+  T2  Macro HFs        - CFTC Commitment of Traders positioning data
+  T3  Commercial banks - BIS Triennial FX Survey
+  T4  Institutional AM - Pension FX hedging surveys
+  T5  Professional FX  - OANDA/IG client positioning statistics
+  T6  Ordinary retail  - ESMA retail trader loss reports
+  T7  Households       - ECB Household Finance and Consumption Survey (HFCS)
                          20 Eurozone countries, waves 2010–2021
                          Key variables: income, wealth, debt, literacy score
 
@@ -28,10 +25,7 @@ from typing import Optional
 from app.models.agent import HumanTwin, AgentTier, RiskTolerance
 
 
-# ---------------------------------------------------------------------------
-# HFCS-calibrated country profiles
-# Source: ECB HFCS Wave 3 (2017) country-level medians
-# ---------------------------------------------------------------------------
+# Country profiles from ECB HFCS Wave 3 (2017)
 HFCS_COUNTRY_PROFILES: dict[str, dict] = {
     "DE": {"income_median": 43_000, "wealth_median": 70_600,  "literacy_mean": 0.62, "debt_prob": 0.45},
     "FR": {"income_median": 38_000, "wealth_median": 117_000, "literacy_mean": 0.58, "debt_prob": 0.48},
@@ -74,9 +68,7 @@ def _literacy_to_risk(literacy: float, rng: random.Random) -> RiskTolerance:
         return RiskTolerance.MEDIUM  # sophisticated investors are actually moderate
 
 
-# ---------------------------------------------------------------------------
-# Tier-specific factories
-# ---------------------------------------------------------------------------
+# Tier factories
 
 def spawn_central_bank(country: str = "US", institution: str = "Federal Reserve") -> HumanTwin:
     return HumanTwin(
@@ -176,7 +168,7 @@ def spawn_professional_retail(rng: random.Random) -> HumanTwin:
 
 def spawn_ordinary_retail(rng: random.Random) -> HumanTwin:
     country = rng.choice(["IT", "DE", "FR", "ES", "RO", "PL", "HU", "CZ"])
-    literacy = rng.betavariate(1.8, 4.0)  # skewed low — most retail traders have poor literacy
+    literacy = rng.betavariate(1.8, 4.0)  # skewed low - most retail traders have poor literacy
     return HumanTwin(
         name=f"RetailTrader_{rng.randint(10_000, 99_999)}",
         tier=AgentTier.ORDINARY_RETAIL,
@@ -197,11 +189,7 @@ def spawn_ordinary_retail(rng: random.Random) -> HumanTwin:
 
 
 def spawn_household(rng: random.Random, country: Optional[str] = None) -> HumanTwin:
-    """
-    Spawn a household agent calibrated from HFCS country-level statistics.
-    This is the most scientifically important factory function —
-    the household population is what makes NEXUS different from MiroFish.
-    """
+    """Spawn a household agent from HFCS country-level distributions."""
     if country is None:
         # Weight by Eurozone population share
         country = rng.choices(
@@ -265,9 +253,7 @@ def spawn_household(rng: random.Random, country: Optional[str] = None) -> HumanT
     )
 
 
-# ---------------------------------------------------------------------------
-# Population builder — the main entry point
-# ---------------------------------------------------------------------------
+
 
 class AgentFactory:
     """
@@ -325,31 +311,31 @@ class AgentFactory:
     ) -> list[HumanTwin]:
         agents: list[HumanTwin] = []
 
-        # T1 — Central banks (fixed roster)
+        # T1 - Central banks (fixed roster)
         for country, name in self.CENTRAL_BANKS:
             agents.append(spawn_central_bank(country, name))
 
-        # T2 — Macro hedge funds
+        # T2 - Macro hedge funds
         for name in self.MACRO_HFS:
             agents.append(spawn_macro_hf(name, self.rng))
 
-        # T3 — Commercial banks
+        # T3 - Commercial banks
         for name in self.COMMERCIAL_BANKS:
             agents.append(spawn_commercial_bank(name, self.rng))
 
-        # T4 — Institutional AMs
+        # T4 - Institutional AMs
         for name in self.INSTITUTIONAL_AMS:
             agents.append(spawn_institutional_am(name, self.rng))
 
-        # T5 — Professional retail
+        # T5 - Professional retail
         for _ in range(n_professional_retail):
             agents.append(spawn_professional_retail(self.rng))
 
-        # T6 — Ordinary retail
+        # T6 - Ordinary retail
         for _ in range(n_ordinary_retail):
             agents.append(spawn_ordinary_retail(self.rng))
 
-        # T7 — Households (the majority)
+        # T7 - Households (the majority)
         countries = country_mix or [None] * n_households
         for c in countries:
             agents.append(spawn_household(self.rng, country=c))

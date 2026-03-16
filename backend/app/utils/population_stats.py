@@ -1,8 +1,5 @@
 """
-NEXUS = HumanTwin
-utils/population_stats.py
-
-Population analytics — summary statistics over the agent population.
+Population analytics - summary statistics over the agent population.
 Mirrors what an econometrician would compute before estimating a panel model:
   - Distribution of financial literacy by country
   - Income and wealth moments
@@ -64,7 +61,7 @@ def _median(values: list[float]) -> float:
 
 
 def _gini(values: list[float]) -> float:
-    """Gini coefficient — measures inequality. 0 = perfect equality, 1 = max inequality."""
+    """Gini coefficient - measures inequality. 0 = perfect equality, 1 = max inequality."""
     if not values:
         return 0.0
     s = sorted(v for v in values if v >= 0)
@@ -112,10 +109,10 @@ def compute_population_stats(agents: list[HumanTwin]) -> PopulationStats:
 
 
 def format_population_report(stats: PopulationStats) -> str:
-    """Human-readable ASCII report — used in CLI scripts."""
+    """Human-readable ASCII report - used in CLI scripts."""
     lines = [
         "=" * 56,
-        "NEXUS = HumanTwin — Population Statistics",
+        "Population Statistics",
         "=" * 56,
         f"Total agents: {stats.total}",
         "",

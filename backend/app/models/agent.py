@@ -1,19 +1,16 @@
 """
-NEXUS = HumanTwin
-agent.py — The HumanTwin agent dataclass
+models/agent.py
 
-This is the heart of NEXUS. Every agent in the simulation is a HumanTwin:
-a persistent, calibrated economic persona with a real identity, memory,
-and financial decision-making logic.
+HumanTwin agent dataclass.
 
-Agent tiers (mirrors the 7-tier hierarchy):
-    T1 — Central bank          (Fed, ECB, BoJ, PBoC, BoE, SNB)
-    T2 — Global macro HF       (Bridgewater-type)
-    T3 — Commercial bank       (JPMorgan FX desk-type)
-    T4 — Institutional AM      (Pension fund, SWF)
-    T5 — Professional retail   (OANDA trader)
-    T6 — Ordinary retail FX    (Social media driven)
-    T7 — Household             (Real economy, no direct FX trading)
+Tiers:
+    T1 - Central bank       (Fed, ECB, BoJ, PBoC, BoE, SNB)
+    T2 - Macro hedge fund   (Bridgewater-type)
+    T3 - Commercial bank    (JPMorgan FX desk)
+    T4 - Institutional AM   (pension fund, SWF)
+    T5 - Professional FX    (OANDA-type trader)
+    T6 - Ordinary retail FX (social media driven)
+    T7 - Household          (real economy)
 """
 from __future__ import annotations
 from dataclasses import dataclass, field
@@ -91,7 +88,7 @@ class HumanTwin:
     def to_prompt_context(self) -> str:
         """
         Serialize this agent's profile into a natural-language context string
-        for the LLM prompt. This is what MiroFish calls 'persona generation'.
+        for the LLM prompt.
         """
         tier_descriptions = {
             AgentTier.CENTRAL_BANK:        "You are a central bank (e.g. ECB/Fed). Your mandate is price stability and financial stability. You set policy rates and conduct FX interventions.",

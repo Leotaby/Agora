@@ -1,18 +1,8 @@
 """
-NEXUS = HumanTwin
-shock.py — MacroShock: the events that hit the twin earth
+models/shock.py
 
-A MacroShock is the equivalent of MiroFish's "seed material" —
-but instead of a news article, it is a structured economic event
-with a quantitative magnitude and a known set of affected agent tiers.
-
-Examples:
-    - Fed raises rate +75bps
-    - ECB announces surprise cut
-    - Bank failure (SVB-type)
-    - Inflation print above expectations
-    - Currency crisis (TRY devaluation)
-    - Crypto crash (LUNA-type)
+MacroShock: structured economic event injected into the simulation.
+Carries quantitative magnitude, affected tiers, and per-tier response delays.
 """
 from __future__ import annotations
 from dataclasses import dataclass, field
@@ -70,7 +60,7 @@ class MacroShock:
     """
     A structured macro event injected into the NEXUS simulation.
 
-    This is the core input mechanism — the equivalent of MiroFish's
+    This is the core input mechanism - the equivalent of MiroFish's
     seed upload, but with quantitative precision and econometric structure.
     """
 
@@ -136,10 +126,10 @@ class MacroShock:
         return f"MacroShock(type={self.shock_type.value}, source={self.source.value}, magnitude_bps={self.magnitude_bps})"
 
 
-# ---- Preset shocks for development and testing ----
+# Preset shocks
 
 def fed_rate_hike_75bps() -> MacroShock:
-    """The canonical NEXUS test shock: Fed +75bps, 2022-style."""
+    """Fed +75bps (2022 style)."""
     return MacroShock(
         shock_type=ShockType.RATE_HIKE,
         source=ShockSource.FED,
@@ -158,7 +148,7 @@ def fed_rate_hike_75bps() -> MacroShock:
 
 
 def ecb_surprise_cut_50bps() -> MacroShock:
-    """ECB emergency cut — dovish shock."""
+    """ECB -50bps surprise cut."""
     return MacroShock(
         shock_type=ShockType.RATE_CUT,
         source=ShockSource.ECB,

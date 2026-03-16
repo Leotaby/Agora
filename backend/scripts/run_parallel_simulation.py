@@ -1,9 +1,4 @@
 """
-NEXUS = HumanTwin
-scripts/run_parallel_simulation.py
-
-Full integration test — mirrors MiroFish's run_parallel_simulation.py.
-
 Tests the complete pipeline end to end:
   1. AgentFactory builds a calibrated population
   2. MacroShock is constructed and validated
@@ -11,9 +6,6 @@ Tests the complete pipeline end to end:
   4. ActionLogger records every reaction to JSONL
   5. PopulationStats validates output moments
   6. Final disconnect report confirms the Meese-Rogoff gap
-
-This is the script you run to confirm the whole system is working
-before committing or deploying.
 
 Usage:
     uv run python scripts/run_parallel_simulation.py
@@ -154,11 +146,11 @@ def main():
         source = r["source"]
         gap = r["gap"]
         if gap > 0.4:
-            msg = f"[green]Strong disconnect window ({gap:+.3f}) — Meese-Rogoff regime active.[/green]"
+            msg = f"[green]Strong disconnect window ({gap:+.3f}) - Meese-Rogoff regime active.[/green]"
         elif gap > 0.15:
-            msg = f"[yellow]Moderate disconnect window ({gap:+.3f}) — partial transmission.[/yellow]"
+            msg = f"[yellow]Moderate disconnect window ({gap:+.3f}) - partial transmission.[/yellow]"
         else:
-            msg = f"[dim]Weak disconnect ({gap:+.3f}) — households absorbed shock quickly.[/dim]"
+            msg = f"[dim]Weak disconnect ({gap:+.3f}) - households absorbed shock quickly.[/dim]"
         console.print(f"  {source}: {msg}")
 
     # Log paths

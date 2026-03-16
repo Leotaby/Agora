@@ -1,9 +1,4 @@
 """
-NEXUS = HumanTwin
-scripts/test_agent_profile.py
-
-Profile format tester — mirrors MiroFish's test_profile_format.py.
-
 Validates that:
 1. AgentFactory spawns agents with correct field types and value ranges
 2. Each tier's to_prompt_context() generates valid LLM input
@@ -178,7 +173,7 @@ def main():
     parser.add_argument("--seed",         type=int, default=42)
     args = parser.parse_args()
 
-    console.print("\n[bold cyan]NEXUS = HumanTwin — Agent Profile Test Suite[/bold cyan]")
+    console.print("\n[bold cyan]NEXUS = HumanTwin - Agent Profile Test Suite[/bold cyan]")
 
     factory = AgentFactory(seed=args.seed)
     agents = factory.build(

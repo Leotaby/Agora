@@ -1,7 +1,4 @@
 """
-NEXUS = HumanTwin
-scripts/run_macro_shock.py
-
 Full pipeline test:
   AgentFactory → MacroShock → SimulationRunner (stub) → Rich report
 
@@ -35,7 +32,7 @@ def build_final_report(sim: Simulation) -> None:
     shock = sim.shocks[0]
 
     console.print(Panel.fit(
-        f"[bold]NEXUS = HumanTwin — Simulation Report[/bold]\n"
+        f"[bold]NEXUS = HumanTwin - Simulation Report[/bold]\n"
         f"[dim]ID: {sim.simulation_id}[/dim]",
         border_style="cyan"
     ))
@@ -100,7 +97,7 @@ def build_final_report(sim: Simulation) -> None:
             f"  Households at t={r_last.round_num}:    [yellow]{hh_sent_last:+.3f}[/yellow] (delayed response)"
         )
         console.print(
-            f"\n  [italic]This gap — {hf_sent_r0 - hh_sent_r0:+.3f} sentiment units — is the "
+            f"\n  [italic]This gap - {hf_sent_r0 - hh_sent_r0:+.3f} sentiment units - is the "
             f"Meese-Rogoff disconnect window.[/italic]"
         )
 

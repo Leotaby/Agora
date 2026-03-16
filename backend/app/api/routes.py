@@ -1,18 +1,16 @@
 """
-NEXUS = HumanTwin
 api/routes.py
 
-FastAPI endpoints — the HTTP interface used by the Vue frontend.
-Mirrors MiroFish's api/ structure but domain-specific.
+FastAPI endpoints - the HTTP interface used by the Vue frontend.
 
 Endpoints:
-  POST /api/simulate          — start a new simulation
-  GET  /api/simulate/{id}     — poll simulation status + results
-  GET  /api/simulate/{id}/stream — SSE stream of round results (live)
-  GET  /api/agents/population — preview the agent population
-  GET  /api/shocks/presets    — list available preset shocks
-  POST /api/shocks/custom     — define a custom shock
-  GET  /api/health            — health check
+  POST /api/simulate          - start a new simulation
+  GET  /api/simulate/{id}     - poll simulation status + results
+  GET  /api/simulate/{id}/stream - SSE stream of round results (live)
+  GET  /api/agents/population - preview the agent population
+  GET  /api/shocks/presets    - list available preset shocks
+  POST /api/shocks/custom     - define a custom shock
+  GET  /api/health            - health check
 """
 from __future__ import annotations
 
@@ -146,7 +144,6 @@ async def start_simulation(
     """
     Start a new simulation. Returns immediately with simulation_id.
     Use GET /simulate/{id} to poll for results.
-    Mirrors MiroFish's project creation + task queue pattern.
     """
     # Build shock
     if request.shock_preset == "fed_hike_75":
@@ -216,9 +213,8 @@ def get_simulation(simulation_id: str):
 @router.get("/simulate/{simulation_id}/stream")
 async def stream_simulation(simulation_id: str):
     """
-    SSE endpoint — streams round results as they complete.
+    SSE endpoint - streams round results as they complete.
     The Vue frontend subscribes to this for live updates.
-    Mirrors MiroFish's real-time simulation display.
     """
     sim = _simulations.get(simulation_id)
     if not sim:
