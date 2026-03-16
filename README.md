@@ -13,7 +13,7 @@
 
 ## What is NEXUS?
 
-NEXUS is a PhD research platform that builds a living synthetic twin of the global economy. Unlike [MiroFish](https://github.com/666ghj/MiroFish) (which generates agents from documents to simulate social media reactions), NEXUS builds a **persistent, econometrically-calibrated population** of economic agents. Each agent has a real identity, income, debt, financial literacy, risk tolerance, drawn from real survey data (ECB Household Finance and Consumption Survey).
+NEXUS is a PhD research platform that builds a living synthetic twin of the global economy. NEXUS builds a **persistent, econometrically-calibrated population** of economic agents. Each agent has a real identity, income, debt, financial literacy, risk tolerance, drawn from real survey data (ECB Household Finance and Consumption Survey).
 
 The central scientific question: **why does the Meese-Rogoff Exchange Rate Disconnect exist?** Why can't macro models predict short-run FX rates despite fundamentals clearly mattering long-run? NEXUS answers this by showing the mechanism: hedge funds react to a Fed announcement in 2 minutes; Italian households react 6 weeks later through their grocery bill. That gap *is* the disconnect.
 
