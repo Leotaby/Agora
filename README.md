@@ -1,167 +1,155 @@
-# NEXUS = HumanTwin
+# NEXUS
 
-**A Living Synthetic Economy of Human Agents, Predicting Markets from Households to Central Banks**
+**Heterogeneous-agent simulation of exchange rate dynamics with LLM-driven cognition**
 
-> *One million heterogeneous agents, from central banks to ordinary households - inhabiting a persistent twin of Earth's financial system. When macro shocks hit, every tier reacts differently. Exchange rate disconnect, banking contagion, and household dollarization emerge from the bottom up.*
-
-[![Python](https://img.shields.io/badge/Python-3.11%2B-blue?style=flat-square)](https://python.org)
-[![Vue](https://img.shields.io/badge/Vue-3.4-green?style=flat-square)](https://vuejs.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-teal?style=flat-square)](https://fastapi.tiangolo.com)
-[![License](https://img.shields.io/badge/License-AGPL--3.0-purple?style=flat-square)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![Claude API](https://img.shields.io/badge/LLM-Claude%204-D97757?style=flat-square&logo=anthropic&logoColor=white)](https://anthropic.com)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Vue 3](https://img.shields.io/badge/Vue-3.4-4FC08D?style=flat-square&logo=vuedotjs&logoColor=white)](https://vuejs.org)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-purple?style=flat-square)](LICENSE)
+[![arXiv](https://img.shields.io/badge/arXiv-forthcoming-b31b1b?style=flat-square)](https://arxiv.org)
 
 ---
 
-## What is NEXUS?
+## 1. Scientific question
 
-NEXUS is a PhD research platform that builds a living synthetic twin of the global economy. NEXUS builds a **persistent, econometrically-calibrated population** of economic agents. Each agent has a real identity, income, debt, financial literacy, risk tolerance, drawn from real survey data (ECB Household Finance and Consumption Survey).
+The Meese and Rogoff (1983) exchange rate disconnect puzzle remains one of the most persistent failures of international macroeconomics. No structural model has been shown to outperform a random walk at short horizons, despite the fact that macro fundamentals clearly matter at longer horizons (Engel and West, 2005; Itskhoki and Mukhin, 2021). The standard explanation points to unobserved expectation heterogeneity across market participants, but existing models either impose representative-agent assumptions or calibrate only two or three agent types.
 
-The central scientific question: **why does the Meese-Rogoff Exchange Rate Disconnect exist?** Why can't macro models predict short-run FX rates despite fundamentals clearly mattering long-run? NEXUS answers this by showing the mechanism: hedge funds react to a Fed announcement in 2 minutes; Italian households react 6 weeks later through their grocery bill. That gap *is* the disconnect.
+NEXUS proposes a different approach. Rather than estimating a reduced-form model of the aggregate exchange rate, NEXUS constructs the full population of heterogeneous agents that *produce* the exchange rate as an emergent outcome. Each agent is an LLM-driven cognitive twin with an empirically calibrated economic profile (income, wealth, debt, financial literacy, risk tolerance) drawn from real survey microdata. A macro shock propagates through the agent population at different speeds depending on each agent's tier, information access, and cognitive architecture. The exchange rate disconnect arises endogenously from the gap between fast-processing institutional agents and slow-processing households.
+
+The core hypothesis: **the Meese-Rogoff disconnect is not a model failure but a measurement of cognitive heterogeneity in shock absorption speed.**
+
+## 2. Preliminary results
+
+The following results come from a live simulation run: Fed +75bps rate hike, 285 agents across 10 countries, 2 rounds.
 
 ```
 Fed raises rates +75bps
-        │
-        ├─ T1 Central banks      → react instantly   (sentiment: +1.000)
-        ├─ T2 Macro hedge funds  → react in 2 min    (sentiment: +0.924) ← price overshoots
-        ├─ T3 Commercial banks   → react in minutes  (sentiment: +0.854)
-        ├─ T4 Institutional AMs  → react in 1 day    (sentiment: +0.651)
-        ├─ T5 Professional FX    → react in hours    (sentiment: +0.436)
-        ├─ T6 Ordinary retail    → react in 1 day    (sentiment: +0.127)
-        └─ T7 Households         → react in 3 weeks  (sentiment: +0.087) ← fundamental correction
-                                                         ↑
-                                              Disconnect window = 0.924 - 0.087 = 0.837
+        |
+        |-- T1 Central banks      instant     sentiment: +0.438   (hawkish response)
+        |-- T2 Macro hedge funds   instant     sentiment: +0.605   (aggressive USD long)
+        |-- T3 Commercial banks    instant     sentiment: +0.448   (widen spreads, lean into flow)
+        |-- T4 Institutional AMs   round 1     sentiment: -0.086   (mechanical rebalancing, sell USD)
+        |-- T5 Professional FX     instant     sentiment: +0.677   (short EUR/USD)
+        |-- T6 Ordinary retail     round 1     sentiment: +0.552   (FOMO buying USD)
+        |-- T7 Households          round 3+    sentiment:  n/a     (not yet activated)
 ```
 
-## Quick start
+**Key observations:**
 
-### Requirements
+- Hedge funds react with strong positive sentiment (+0.605), reasoning through carry trade implications and rate differential widening. They articulate a clear macro thesis and size positions accordingly.
+- Institutional asset managers are the only tier to show *negative* sentiment (-0.086) in round 1. Their reasoning cites mechanical portfolio rebalancing: USD appreciation triggers a drift above target FX allocation, requiring them to *sell* USD to restore hedge ratios. This is exactly the behavior documented in the pension fund hedging literature (Campbell, Serfaty-de Medeiros, and Viceira, 2010).
+- Ordinary retail traders show strong positive sentiment (+0.552) driven by FOMO and headline reaction, consistent with ESMA data showing retail traders systematically overweight momentum signals.
+- Commercial banks widen bid/ask spreads and accumulate inventory, acting as liquidity providers rather than directional traders.
+- The disconnect gap between hedge funds at t=0 (+0.605) and households (not yet reacting) captures the core Meese-Rogoff mechanism in real time.
+- Net USD flow accelerates from +18.0 in round 0 to +52.2 in round 1 as retail enters.
 
-| Tool | Version |
-|------|---------|
-| Python | ≥ 3.11, ≤ 3.12 |
-| Node.js | ≥ 18 |
-| uv | latest |
+## 3. Seven-tier agent hierarchy
 
-### 1. Clone and configure
+Each tier is populated with agents whose economic profiles are drawn from empirical calibration sources. The cognitive architecture (system prompt) is tier-specific, encoding the agent's information processing speed, decision heuristics, and behavioral biases.
+
+| Tier | Agent type | N (default) | Calibration source | Information speed | Behavioral prior |
+|------|-----------|-------------|-------------------|------------------|-----------------|
+| T1 | Central banks (Fed, ECB, BoJ, BoE, SNB, PBoC) | 6 | Taylor rule literature, FOMC transcripts | Instant | Mandate-constrained, stability-seeking |
+| T2 | Global macro hedge funds | 6 | CFTC Commitment of Traders | Instant | Carry + momentum + fundamental macro |
+| T3 | Commercial bank FX desks | 5 | BIS Triennial FX Survey (2022) | Instant | Market-making, spread capture, flow internalization |
+| T4 | Institutional asset managers (pension, SWF) | 5 | Pension FX hedge ratio surveys | 1 round delay | Mechanical rebalancing, liability-driven |
+| T5 | Professional retail FX | 50 | OANDA/IG client positioning data | Instant | Technical analysis, leveraged (30:1) |
+| T6 | Ordinary retail FX | 150 | ESMA retail trader loss reports | 1 round delay | Social media, herding, FOMO |
+| T7 | Households (real economy) | scaled by country | ECB HFCS panel (waves 2010-2021) | 3 round delay | Savings reallocation, dollarization, consumption |
+
+Household agents are calibrated from the ECB Household Finance and Consumption Survey at the country level. Income and wealth follow lognormal distributions fitted to HFCS country medians. Financial literacy is drawn from a beta distribution calibrated to country-level HFCS literacy scores. Countries currently covered: DE, FR, IT, ES, NL, BE, PT, GR, AT, FI, US, CN, IN, TR, AR, RU, IR.
+
+## 4. Architecture
+
+```
+nexus/
+|-- backend/
+|   |-- app/
+|   |   |-- config.py                    # Pydantic Settings (env vars)
+|   |   |-- models/
+|   |   |   |-- agent.py                 # HumanTwin dataclass (core agent)
+|   |   |   |-- shock.py                 # MacroShock (rate hike, sanctions, etc.)
+|   |   |   |-- simulation.py            # Simulation, RoundResult, AgentReaction
+|   |   |   |-- world.py                 # World state container
+|   |   |   |-- country.py               # Country model (14 nations)
+|   |   |   |-- institution.py           # International institutions (IMF, BIS, etc.)
+|   |   |   |-- geopolitical.py          # Sanctions regimes, alliances
+|   |   |   |-- political_actor.py       # Parties, governments
+|   |   |   |-- nonstate_actor.py        # Non-state actors (threat modeling)
+|   |   |-- services/
+|   |   |   |-- llm_engine.py            # Claude subprocess calls (claude -p)
+|   |   |   |-- simulation_runner.py     # Round orchestration, batch processing
+|   |   |   |-- agent_factory.py         # Population factory (HFCS calibration)
+|   |   |   |-- world_factory.py         # Full world builder (all entity layers)
+|   |   |-- api/
+|   |   |   |-- routes.py                # FastAPI endpoints
+|   |   |-- utils/
+|   |       |-- logger.py                # Structured JSONL logging
+|   |       |-- population_stats.py      # Descriptive statistics
+|   |-- scripts/
+|   |   |-- run_world_simulation.py      # Full world simulation (main entry)
+|   |   |-- run_forex_simulation.py      # FX-only population test
+|   |   |-- run_macro_shock.py           # Factory + runner + report pipeline
+|   |   |-- run_parallel_simulation.py   # Parallel batch runner
+|   |   |-- test_agent_profile.py        # Agent prompt inspection
+|   |   |-- action_logger.py             # Reaction logging utilities
+|   |-- run.py                           # FastAPI + uvicorn entry point
+|   |-- requirements.txt
+|   |-- pyproject.toml
+|-- frontend/
+|   |-- src/
+|   |   |-- App.vue                      # Root component
+|   |   |-- views/
+|   |   |   |-- HomeView.vue             # Tier cards + population stats
+|   |   |   |-- SimulationView.vue       # Real-time simulation dashboard
+|   |   |-- stores/
+|   |       |-- simulation.js            # Pinia state management
+|   |-- vite.config.js
+|-- docker-compose.yml
+|-- Dockerfile
+```
+
+## 5. Quick start
+
+Requires Python >= 3.11, [uv](https://github.com/astral-sh/uv), and [Claude Code](https://claude.ai/claude-code) (for LLM calls via `claude -p`).
 
 ```bash
-git clone https://github.com/Leotaby/nexus-sim.git
-cd nexus-sim
-cp .env.example .env
-# Edit .env with your API keys
+# 1. Install Python dependencies
+cd backend && uv sync
+
+# 2. Run a Fed rate hike simulation (285 agents, 2 rounds, real LLM reasoning)
+uv run python scripts/run_world_simulation.py --fed-hike --hh 10 --rounds 2
+
+# 3. Run with stub reactions (no LLM, for CI or offline testing)
+uv run python scripts/run_world_simulation.py --fed-hike --hh 10 --rounds 2 --no-llm
 ```
 
-### 2. Install dependencies
+Available shock scenarios: `--fed-hike`, `--ecb-cut`, `--russia-sanction`, `--oil-cut`, `--nk-cyber`, `--argentina-default`.
 
-```bash
-npm run setup:all
-```
+## 6. Target publications
 
-### 3. Run the simulation (no API keys needed — stub mode)
+| # | Working title | Target journal | Status |
+|---|--------------|---------------|--------|
+| P1 | NEXUS: An LLM-driven heterogeneous-agent model for exchange rate dynamics | Journal of Economic Dynamics and Control | Framework paper |
+| P2 | Resolving the Meese-Rogoff disconnect via heterogeneous information processing speeds | Journal of Monetary Economics | Core theoretical contribution |
+| P3 | Household dollarization as emergent behavior: evidence from a calibrated agent-based model | Journal of International Economics | HFCS-calibrated household layer |
+| P4 | Retail herding and FX momentum: an agent-based decomposition of the carry trade | Journal of Financial Economics | Tier interaction dynamics |
+| P5 | Policy counterfactuals in a synthetic economy: CBDC adoption and monetary transmission | Review of Financial Studies | Policy simulation layer |
 
-```bash
-cd backend
-uv run python scripts/run_macro_shock.py
-```
+## 7. References
 
-### 4. Start the full stack
+- Campbell, J. Y., Serfaty-de Medeiros, K., & Viceira, L. M. (2010). Global currency hedging. *Journal of Finance*, 65(1), 87-121.
+- Engel, C., & West, K. D. (2005). Exchange rates and fundamentals. *Journal of Political Economy*, 113(3), 485-517.
+- Itskhoki, O., & Mukhin, D. (2021). Exchange rate disconnect in general equilibrium. *Journal of Political Economy*, 129(8), 2183-2232.
+- Meese, R. A., & Rogoff, K. (1983). Empirical exchange rate models of the seventies: Do they fit out of sample? *Journal of International Economics*, 14(1-2), 3-24.
 
-```bash
-npm run dev
-```
+## 8. Author
 
-Frontend: `http://localhost:3000` · Backend API: `http://localhost:5001`
-
----
-
-## File structure
-
-```
-nexus-sim/
-├── .env.example
-├── package.json                  # npm scripts: dev, setup:all
-├── docker-compose.yml
-│
-├── backend/
-│   ├── run.py                    # FastAPI + uvicorn entry point
-│   ├── requirements.txt
-│   ├── pyproject.toml
-│   │
-│   ├── app/
-│   │   ├── config.py             # All env vars via pydantic Settings
-│   │   ├── models/
-│   │   │   ├── agent.py          # HumanTwin dataclass — the core agent
-│   │   │   ├── shock.py          # MacroShock — Fed hike, ECB cut, etc.
-│   │   │   └── simulation.py     # Simulation session + AgentReaction
-│   │   ├── services/
-│   │   │   ├── agent_factory.py  # Spawns calibrated populations (HFCS data)
-│   │   │   ├── llm_engine.py     # Claude API calls per agent
-│   │   │   └── simulation_runner.py  # Orchestrates full simulation
-│   │   └── api/
-│   │       └── routes.py         # FastAPI endpoints
-│   │
-│   └── scripts/
-│       ├── run_forex_simulation.py   # First runnable: population test
-│       └── run_macro_shock.py        # Full pipeline: factory + runner + report
-│
-└── frontend/
-    ├── index.html
-    ├── vite.config.js
-    └── src/
-        ├── main.js
-        ├── App.vue               # Root component + nav
-        └── views/
-            ├── HomeView.vue      # Landing: tier cards + stats
-            └── SimulationView.vue  # God's-eye dashboard
-```
-
----
-
-## Seven-tier agent hierarchy
-
-| Tier | Agent type | Calibration source | Speed |
-|------|-----------|-------------------|-------|
-| T1 | Central banks (Fed, ECB, BoJ…) | Taylor rule, FOMC transcripts | Instant |
-| T2 | Global macro hedge funds | CFTC Commitment of Traders | 2 minutes |
-| T3 | Commercial / investment banks | BIS Triennial FX Survey | Seconds |
-| T4 | Institutional asset managers | Pension FX hedge surveys | 1–3 days |
-| T5 | Professional retail FX | OANDA/IG positioning data | Hours |
-| T6 | Ordinary retail FX | ESMA retail loss statistics | Days |
-| T7 | Households & real economy | **ECB HFCS panel data** | Weeks |
-
----
-
-## Research agenda (5 PhD papers)
-
-| # | Title | Target journal | Phase |
-|---|-------|---------------|-------|
-| P1 | NEXUS: A calibrated multi-agent framework for heterogeneous FX dynamics | JEDC / JFM | Phase 1 |
-| P2 | Resolving the exchange rate disconnect via heterogeneous agent information processing | JME / AER | Phase 2 |
-| P3 | Currency substitution as emergent behavior: household heterogeneity and dollarization | JIE / IMF ER | Phase 3 |
-| P4 | Crypto adoption dynamics and disruption of monetary transmission | JFE / RFS | Phase 3 |
-| P5 | Digital currencies and policy counterfactuals: a simulation-based evaluation | Econ Policy | Phase 4 |
-
----
-
-## Roadmap
-
-- **Phase 0 (now):** Core data models, population factory, stub simulation, FastAPI + Vue scaffold
-- **Phase 1:** LLM engine active (real Claude API calls per agent), FX order book, 2022 Fed cycle backtest
-- **Phase 2:** Banking module, Meese-Rogoff formal test, SNB 2015 replication
-- **Phase 3:** Crypto market layer, EM household dollarization, business management module
-- **Phase 4:** Policy sandbox (CBDC counterfactuals), DiD evaluation, open-source release
-
----
-
-## Academic context
-
-PhD candidate: **Hatef (Leo) Tabbakhian**
-Target programme: GSEFM - Goethe University Frankfurt (May 2026)
-Background: MSc Economics & Finance (Federico II), System-GMM econometrics, KPMG credit risk
-
-The simulation engine architecture is inspired by [OASIS](https://github.com/camel-ai/oasis) (CAMEL-AI).
-
----
+Hatef (Leo) Tabbakhian
+PhD candidate (target: GSEFM, Goethe University Frankfurt, 2026)
+MSc Economics and Finance, Universita Federico II di Napoli
 
 ## License
 
-AGPL-3.0 - same as MiroFish. Derivative works must be open-sourced.
+AGPL-3.0. Derivative works must be open-sourced.
