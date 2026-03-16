@@ -1,9 +1,8 @@
 /**
- * NEXUS = HumanTwin
  * stores/simulation.js — Pinia simulation store
  *
- * Central state for the god's-eye dashboard.
- * Handles: simulation lifecycle, polling, SSE streaming, result accumulation.
+ * Central state for the dashboard.
+ * Handles: simulation lifecycle, SSE streaming, world graph, agent feed.
  */
 import { defineStore } from 'pinia'
 import axios from 'axios'
@@ -20,17 +19,25 @@ export const useSimulationStore = defineStore('simulation', {
     numRounds:      0,
 
     // Results
-    roundResults:   [],           // [{ round_num, sentiment_by_tier, net_usd_flow, exchange_rate_delta }]
+    roundResults:   [],           // [{ round_num, sentiment_by_tier, net_usd_flow }]
 
-    // Population preview (from GET /agents/population)
+    // World graph (for D3)
+    worldGraph:         null,     // { nodes: [], edges: [] }
+    worldGraphLoading:  false,
+
+    // Agent feed (last 10 reactions)
+    agentReactions:     [],       // [{ tier, action, sentiment, country, key, round_num }]
+
+    // Population preview
     population:     null,
 
     // UI state
     loading:        false,
     error:          null,
 
-    // Polling
+    // Internal
     _pollInterval:  null,
+    _eventSource:   null,
   }),
 
   getters: {
@@ -38,17 +45,19 @@ export const useSimulationStore = defineStore('simulation', {
     isRunning:    (state) => ['pending', 'running'].includes(state.status),
     isComplete:   (state) => state.status === 'completed',
 
-    // The Meese-Rogoff disconnect gap: HF sentiment at round 0 vs household sentiment now
+    roundProgress(state) {
+      return state.numRounds > 0 ? state.roundResults.length / state.numRounds : 0
+    },
+
     disconnectGap(state) {
       const r0   = state.roundResults[0]
-      const rNow = this.latestRound
+      const rNow = state.roundResults[state.roundResults.length - 1]
       if (!r0 || !rNow) return null
       const hf = r0.sentiment_by_tier?.T2_macro_hedge_fund ?? 0
       const hh = rNow.sentiment_by_tier?.T7_household       ?? 0
       return parseFloat((hf - hh).toFixed(4))
     },
 
-    // Sentiment series per tier — for charting
     sentimentSeries(state) {
       const tiers = [
         'T1_central_bank', 'T2_macro_hedge_fund', 'T3_commercial_bank',
@@ -65,7 +74,6 @@ export const useSimulationStore = defineStore('simulation', {
       }))
     },
 
-    // Net USD flow series — for charting
     flowSeries(state) {
       return state.roundResults.map(r => ({
         round: r.round_num,
@@ -75,6 +83,18 @@ export const useSimulationStore = defineStore('simulation', {
   },
 
   actions: {
+    async fetchWorldGraph() {
+      this.worldGraphLoading = true
+      try {
+        const res = await axios.get(`${API}/world/graph`)
+        this.worldGraph = res.data
+      } catch (e) {
+        this.error = e.response?.data?.detail || e.message
+      } finally {
+        this.worldGraphLoading = false
+      }
+    },
+
     async fetchPopulation(nHouseholds = 100) {
       this.loading = true
       try {
@@ -96,19 +116,70 @@ export const useSimulationStore = defineStore('simulation', {
 
       try {
         const res = await axios.post(`${API}/simulate`, config)
-        this.simId         = res.data.simulation_id
-        this.status        = 'pending'
-        this.numAgents     = res.data.num_agents
-        this.shockHeadline = config.shock_preset === 'ecb_cut_50'
-          ? 'ECB announces surprise -50bps rate cut'
-          : 'Fed raises federal funds rate +75bps'
-
-        this._startPolling()
+        this.simId     = res.data.simulation_id
+        this.status    = 'pending'
+        this.numAgents = res.data.num_agents
+        this.numRounds = config.n_rounds || 6
+        this.startSSE()
       } catch (e) {
         this.error  = e.response?.data?.detail || e.message
         this.status = 'failed'
       } finally {
         this.loading = false
+      }
+    },
+
+    startSSE() {
+      if (this._eventSource) this._eventSource.close()
+      if (!this.simId) return
+
+      const es = new EventSource(`${API}/simulate/${this.simId}/stream`)
+      this._eventSource = es
+
+      es.onmessage = (event) => {
+        const data = JSON.parse(event.data)
+        if (data.event === 'complete') {
+          this.status = 'completed'
+          es.close()
+          this._eventSource = null
+          // Fetch final state for headline etc.
+          this._fetchFinal()
+          return
+        }
+        if (data.event === 'error') {
+          this.status = 'failed'
+          es.close()
+          this._eventSource = null
+          return
+        }
+
+        this.status = 'running'
+        this.roundResults.push({
+          round_num: data.round_num,
+          sentiment_by_tier: data.sentiment_by_tier,
+          net_usd_flow: data.net_usd_flow,
+        })
+
+        // Feed agent reactions
+        if (data.sample_reactions) {
+          for (const r of data.sample_reactions) {
+            this.agentReactions.push({
+              ...r,
+              key: `${data.round_num}-${r.tier}-${Date.now()}-${Math.random()}`,
+              round_num: data.round_num,
+            })
+            if (this.agentReactions.length > 10) {
+              this.agentReactions.shift()
+            }
+          }
+        }
+      }
+
+      es.onerror = () => {
+        es.close()
+        this._eventSource = null
+        // Fallback to polling
+        this._startPolling()
       }
     },
 
@@ -122,39 +193,39 @@ export const useSimulationStore = defineStore('simulation', {
       try {
         const res  = await axios.get(`${API}/simulate/${this.simId}`)
         const data = res.data
-
         this.status    = data.status
         this.numAgents = data.num_agents
         this.numRounds = data.num_rounds
-
-        if (data.rounds) {
-          this.roundResults = data.rounds
-        }
-        if (data.shock_headline) {
-          this.shockHeadline = data.shock_headline
-        }
-
+        if (data.rounds) this.roundResults = data.rounds
+        if (data.shock_headline) this.shockHeadline = data.shock_headline
         if (['completed', 'failed'].includes(data.status)) {
           clearInterval(this._pollInterval)
           this._pollInterval = null
         }
-      } catch {
-        // Network error — keep polling
-      }
+      } catch { /* keep polling */ }
+    },
+
+    async _fetchFinal() {
+      if (!this.simId) return
+      try {
+        const res = await axios.get(`${API}/simulate/${this.simId}`)
+        if (res.data.shock_headline) this.shockHeadline = res.data.shock_headline
+        this.numAgents = res.data.num_agents || this.numAgents
+        this.numRounds = res.data.num_rounds || this.numRounds
+      } catch { /* ignore */ }
     },
 
     reset() {
-      if (this._pollInterval) {
-        clearInterval(this._pollInterval)
-        this._pollInterval = null
-      }
-      this.simId         = null
-      this.status        = 'idle'
-      this.shockHeadline = ''
-      this.numAgents     = 0
-      this.numRounds     = 0
-      this.roundResults  = []
-      this.error         = null
+      if (this._pollInterval) { clearInterval(this._pollInterval); this._pollInterval = null }
+      if (this._eventSource)  { this._eventSource.close(); this._eventSource = null }
+      this.simId          = null
+      this.status         = 'idle'
+      this.shockHeadline  = ''
+      this.numAgents      = 0
+      this.numRounds      = 0
+      this.roundResults   = []
+      this.agentReactions = []
+      this.error          = null
     },
   },
 })

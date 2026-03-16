@@ -60,5 +60,5 @@ body { background: var(--bg); color: var(--text); min-height: 100vh; }
 }
 .nav-links a:hover, .nav-links a.router-link-active { color: var(--text); }
 
-main { flex: 1; padding: 0 32px 64px; max-width: 1200px; margin: 0 auto; width: 100%; }
+main { flex: 1; padding: 0 32px 64px; max-width: 1440px; margin: 0 auto; width: 100%; }
 </style>

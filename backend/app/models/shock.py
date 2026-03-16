@@ -163,3 +163,128 @@ def ecb_surprise_cut_50bps() -> MacroShock:
         primary_currency="EUR",
         secondary_currency="USD",
     )
+
+
+def shock_russia_new_sanctions() -> MacroShock:
+    """USA + EU expand Russia sanctions."""
+    return MacroShock(
+        shock_type=ShockType.SANCTIONS,
+        source=ShockSource.FED,
+        magnitude_pct=-8.0,
+        direction=-1,
+        headline="USA + EU expand Russia sanctions: new energy embargo and secondary sanctions",
+        description=(
+            "The US Treasury and EU Commission announce a new package targeting "
+            "Russian LNG exports and imposing secondary sanctions on third-country "
+            "entities trading with Russia. Turkey and India face financial penalties "
+            "for continued Russian oil imports."
+        ),
+        forward_guidance="Secondary sanctions enforcement begins in 90 days.",
+        primary_currency="RUB",
+        secondary_currency="USD",
+        tier_salience={
+            "T1_central_bank": 1.0, "T2_macro_hedge_fund": 0.90,
+            "T3_commercial_bank": 0.85, "T4_institutional_am": 0.60,
+            "T5_professional_retail": 0.50, "T6_ordinary_retail": 0.25,
+            "T7_household": 0.10,
+        },
+        tier_delay_rounds={
+            "T1_central_bank": 0, "T2_macro_hedge_fund": 0,
+            "T3_commercial_bank": 0, "T4_institutional_am": 1,
+            "T5_professional_retail": 1, "T6_ordinary_retail": 2,
+            "T7_household": 4,
+        },
+    )
+
+
+def shock_opec_cut() -> MacroShock:
+    """OPEC+ surprise 10% production cut."""
+    return MacroShock(
+        shock_type=ShockType.TRADE_WAR,
+        source=ShockSource.FED,
+        magnitude_pct=15.0,
+        direction=1,
+        headline="OPEC+ agrees surprise 10% production cut - Brent spikes to $98",
+        description=(
+            "Saudi Arabia and Russia announce a coordinated 10% production cut effective "
+            "next month. Brent crude surges 15% on announcement. Energy inflation "
+            "expectations jump across Europe and Asia."
+        ),
+        forward_guidance="Cut maintained for minimum 6 months.",
+        primary_currency="USD",
+        secondary_currency="EUR",
+        tier_salience={
+            "T1_central_bank": 0.95, "T2_macro_hedge_fund": 0.85,
+            "T3_commercial_bank": 0.65, "T4_institutional_am": 0.70,
+            "T5_professional_retail": 0.55, "T6_ordinary_retail": 0.40,
+            "T7_household": 0.30,
+        },
+        tier_delay_rounds={
+            "T1_central_bank": 0, "T2_macro_hedge_fund": 0,
+            "T3_commercial_bank": 1, "T4_institutional_am": 1,
+            "T5_professional_retail": 1, "T6_ordinary_retail": 2,
+            "T7_household": 5,
+        },
+    )
+
+
+def shock_nk_cyber_attack() -> MacroShock:
+    """Lazarus Group cyberattack on Western banks."""
+    return MacroShock(
+        shock_type=ShockType.LIQUIDITY_CRISIS,
+        source=ShockSource.MARKET,
+        magnitude_bps=-200.0,
+        direction=-1,
+        headline="Lazarus Group cyberattack disables three major Western banks",
+        description=(
+            "The FBI and CISA confirm a coordinated cyberattack by the Lazarus Group "
+            "has disabled payment processing at three major US banks and one European bank. "
+            "SWIFT messaging disrupted for 6 hours. $1.2bn in crypto stolen from DeFi bridges."
+        ),
+        forward_guidance="OFAC imposes new sanctions on DPRK front companies. G7 emergency meeting called.",
+        primary_currency="USD",
+        secondary_currency="EUR",
+        tier_salience={
+            "T1_central_bank": 1.0, "T2_macro_hedge_fund": 0.95,
+            "T3_commercial_bank": 1.0, "T4_institutional_am": 0.75,
+            "T5_professional_retail": 0.70, "T6_ordinary_retail": 0.50,
+            "T7_household": 0.20,
+        },
+        tier_delay_rounds={
+            "T1_central_bank": 0, "T2_macro_hedge_fund": 0,
+            "T3_commercial_bank": 0, "T4_institutional_am": 0,
+            "T5_professional_retail": 0, "T6_ordinary_retail": 1,
+            "T7_household": 2,
+        },
+    )
+
+
+def shock_argentina_default() -> MacroShock:
+    """Argentina sovereign default."""
+    return MacroShock(
+        shock_type=ShockType.CURRENCY_CRISIS,
+        source=ShockSource.MARKET,
+        magnitude_pct=-40.0,
+        direction=-1,
+        headline="Argentina misses IMF repayment - 9th sovereign default, peso collapses 40%",
+        description=(
+            "Argentina fails to make a $2.1bn IMF payment. Talks collapse. "
+            "The peso collapses 40% overnight. Capital controls tightened. "
+            "Contagion spreads to Turkey, Pakistan, and other high-debt EM economies."
+        ),
+        forward_guidance="IMF emergency team dispatched. New austerity program under negotiation.",
+        primary_currency="ARS",
+        secondary_currency="USD",
+        tier_salience={
+            "T1_central_bank": 0.70, "T2_macro_hedge_fund": 0.95,
+            "T3_commercial_bank": 0.60, "T4_institutional_am": 0.75,
+            "T5_professional_retail": 0.65, "T6_ordinary_retail": 0.45,
+            "T7_household": 0.55,
+        },
+        tier_delay_rounds={
+            "T1_central_bank": 0, "T2_macro_hedge_fund": 0,
+            "T3_commercial_bank": 1, "T4_institutional_am": 1,
+            "T5_professional_retail": 1, "T6_ordinary_retail": 1,
+            "T7_household": 2,
+        },
+    )
