@@ -191,6 +191,7 @@ async def stream_simulation(simulation_id: str):
 
     async def event_generator():
         last_round = -1
+        last_progress_done = -1
         while True:
             for result in sim.round_results:
                 if result.round_num > last_round:
@@ -211,12 +212,20 @@ async def stream_simulation(simulation_id: str):
                     }
                     yield f"data: {json.dumps(data)}\n\n"
                     last_round = result.round_num
+                    last_progress_done = -1
+
+            # Emit per-agent progress if a round is in-flight
+            prog = sim.progress
+            if prog["agents_total"] > 0 and prog["agents_done"] != last_progress_done:
+                last_progress_done = prog["agents_done"]
+                yield f"data: {json.dumps({'event': 'progress', 'round_num': prog['round_num'], 'agents_done': prog['agents_done'], 'agents_total': prog['agents_total'], 'agents_failed': prog['agents_failed'], 'errors': prog['errors'][-5:]})}\n\n"
 
             if sim.status == SimulationStatus.COMPLETED:
                 yield f"data: {json.dumps({'event': 'complete', 'simulation_id': simulation_id})}\n\n"
                 break
             elif sim.status == SimulationStatus.FAILED:
-                yield f"data: {json.dumps({'event': 'error'})}\n\n"
+                error_msg = sim.final_report or "Simulation failed"
+                yield f"data: {json.dumps({'event': 'error', 'message': error_msg})}\n\n"
                 break
 
             await asyncio.sleep(0.5)

@@ -10,7 +10,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import * as d3 from 'd3'
 import { useSimulationStore } from '@/stores/simulation'
 
@@ -21,8 +21,9 @@ const svgEl = ref(null)
 const tooltipEl = ref(null)
 const tooltip = ref({ show: false, title: '', body: '' })
 
-let simulation = null
+let sim = null
 let resizeObserver = null
+let resizeTimeout = null
 
 const NODE_COLORS = {
   country:        '#4f8ef7',
@@ -80,12 +81,15 @@ function render(graphData) {
 
   const svg = d3.select(svgEl.value)
   svg.selectAll('*').remove()
+  if (sim) { sim.stop(); sim = null }
 
-  const rect = containerEl.value.getBoundingClientRect()
-  const width = rect.width || 800
-  const height = rect.height || 600
+  const width = containerEl.value.clientWidth || 800
+  const height = containerEl.value.clientHeight || 600
 
-  svg.attr('width', width).attr('height', height)
+  svg
+    .attr('viewBox', `0 0 ${width} ${height}`)
+    .attr('width', width)
+    .attr('height', height)
 
   const nodes = graphData.nodes.map(d => ({ ...d }))
   const edges = graphData.edges.map(d => ({ ...d }))
@@ -95,22 +99,21 @@ function render(graphData) {
   const g = svg.append('g')
 
   // Zoom
-  const zoom = d3.zoom()
-    .scaleExtent([0.3, 4])
-    .on('zoom', (event) => g.attr('transform', event.transform))
-  svg.call(zoom)
+  svg.call(
+    d3.zoom()
+      .scaleExtent([0.3, 4])
+      .on('zoom', (event) => g.attr('transform', event.transform))
+  )
 
-  // Arrow markers for directed edges
+  // Arrow markers
   const defs = svg.append('defs')
   ;['sanctions', 'state_sponsor'].forEach(type => {
     const style = EDGE_STYLES[type]
     defs.append('marker')
       .attr('id', `arrow-${type}`)
       .attr('viewBox', '0 -5 10 10')
-      .attr('refX', 20)
-      .attr('refY', 0)
-      .attr('markerWidth', 6)
-      .attr('markerHeight', 6)
+      .attr('refX', 20).attr('refY', 0)
+      .attr('markerWidth', 6).attr('markerHeight', 6)
       .attr('orient', 'auto')
       .append('path')
       .attr('d', 'M0,-4L10,0L0,4')
@@ -122,8 +125,8 @@ function render(graphData) {
     .selectAll('line')
     .data(edges)
     .join('line')
-    .attr('stroke', d => (EDGE_STYLES[d.type]?.stroke || '#333'))
-    .attr('stroke-opacity', d => (EDGE_STYLES[d.type]?.opacity || 0.2))
+    .attr('stroke', d => EDGE_STYLES[d.type]?.stroke || '#333')
+    .attr('stroke-opacity', d => EDGE_STYLES[d.type]?.opacity || 0.2)
     .attr('stroke-width', d => d.type === 'sanctions' ? 1.5 : 0.8)
     .attr('stroke-dasharray', d => EDGE_STYLES[d.type]?.dash || null)
     .attr('marker-end', d => d.directed ? `url(#arrow-${d.type})` : null)
@@ -138,10 +141,6 @@ function render(graphData) {
     .attr('stroke', 'rgba(255,255,255,0.15)')
     .attr('stroke-width', 1)
     .style('cursor', 'grab')
-    .call(d3.drag()
-      .on('start', dragStart)
-      .on('drag', dragging)
-      .on('end', dragEnd))
 
   // Labels
   const label = g.append('g')
@@ -150,7 +149,7 @@ function render(graphData) {
     .join('text')
     .text(d => d.type === 'country' ? (d.data?.flag || d.label) : d.label)
     .attr('font-size', d => d.type === 'country' ? 11 : 9)
-    .attr('fill', 'var(--text2)')
+    .attr('fill', '#8b90a0')
     .attr('text-anchor', 'middle')
     .attr('dy', d => radiusScale(d.size || 10) + 12)
     .style('pointer-events', 'none')
@@ -171,75 +170,84 @@ function render(graphData) {
     d3.select(event.currentTarget).attr('stroke', 'rgba(255,255,255,0.15)').attr('stroke-width', 1)
   })
 
+  // Drag handlers
+  function dragStart(event, d) {
+    if (!event.active) sim.alphaTarget(0.3).restart()
+    d.fx = d.x; d.fy = d.y
+  }
+  function dragging(event, d) { d.fx = event.x; d.fy = event.y }
+  function dragEnd(event, d) {
+    if (!event.active) sim.alphaTarget(0)
+    d.fx = null; d.fy = null
+  }
+  node.call(d3.drag().on('start', dragStart).on('drag', dragging).on('end', dragEnd))
+
   // Force simulation
-  simulation = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(edges)
-      .id(d => d.id)
-      .distance(d => {
-        if (d.type === 'trade') return 120
-        if (d.type === 'alliance') return 80
-        if (d.type === 'institution_member') return 100
-        return 90
-      }))
+  sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(edges).id(d => d.id).distance(d => {
+      if (d.type === 'trade') return 120
+      if (d.type === 'alliance') return 80
+      if (d.type === 'institution_member') return 100
+      return 90
+    }))
     .force('charge', d3.forceManyBody().strength(-200))
     .force('center', d3.forceCenter(width / 2, height / 2))
     .force('collide', d3.forceCollide().radius(d => radiusScale(d.size || 10) + 6))
     .on('tick', () => {
       link
-        .attr('x1', d => d.source.x)
-        .attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x)
-        .attr('y2', d => d.target.y)
-      node
-        .attr('cx', d => d.x)
-        .attr('cy', d => d.y)
-      label
-        .attr('x', d => d.x)
-        .attr('y', d => d.y)
+        .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y)
+      node.attr('cx', d => d.x).attr('cy', d => d.y)
+      label.attr('x', d => d.x).attr('y', d => d.y)
     })
-
-  function dragStart(event, d) {
-    if (!event.active) simulation.alphaTarget(0.3).restart()
-    d.fx = d.x; d.fy = d.y
-  }
-  function dragging(event, d) {
-    d.fx = event.x; d.fy = event.y
-  }
-  function dragEnd(event, d) {
-    if (!event.active) simulation.alphaTarget(0)
-    d.fx = null; d.fy = null
-  }
 }
 
 watch(() => store.worldGraph, (graph) => {
-  if (graph) render(graph)
+  if (graph) nextTick(() => render(graph))
 }, { deep: true })
 
 onMounted(() => {
   store.fetchWorldGraph()
 
   resizeObserver = new ResizeObserver(() => {
-    if (store.worldGraph) render(store.worldGraph)
+    // Debounce to avoid render loop
+    clearTimeout(resizeTimeout)
+    resizeTimeout = setTimeout(() => {
+      if (store.worldGraph) render(store.worldGraph)
+    }, 200)
   })
   if (containerEl.value) resizeObserver.observe(containerEl.value)
 })
 
 onBeforeUnmount(() => {
-  if (simulation) simulation.stop()
+  if (sim) sim.stop()
   if (resizeObserver) resizeObserver.disconnect()
+  clearTimeout(resizeTimeout)
 })
 </script>
 
 <style scoped>
 .world-graph {
-  position: relative; width: 100%; height: 100%; min-height: 400px;
-  background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
   overflow: hidden;
 }
-.world-graph svg { display: block; width: 100%; height: 100%; }
+.world-graph svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+}
 .wg-loading {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-size: 12px; color: var(--text3);
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: var(--text3); z-index: 5;
 }
 .wg-tooltip {
   position: absolute; pointer-events: none; z-index: 10;

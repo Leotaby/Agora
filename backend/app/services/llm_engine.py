@@ -297,16 +297,31 @@ Remember: you must respond ONLY with valid JSON. No prose, no markdown, no expla
         shock: MacroShock,
         round_num: int,
         concurrency: int = 10,
+        progress: dict | None = None,
     ) -> list[AgentReaction]:
         """
         Process a batch of agents concurrently.
         concurrency controls max parallel LLM subprocesses.
+        If progress dict is provided, updates agents_done/agents_failed live.
         """
         semaphore = asyncio.Semaphore(concurrency)
 
         async def _limited(agent: HumanTwin) -> AgentReaction:
             async with semaphore:
-                return await self.react_async(agent, shock, round_num)
+                reaction = await self.react_async(agent, shock, round_num)
+                if progress is not None:
+                    progress["agents_done"] += 1
+                    if reaction.reasoning.startswith("[LLM ERROR]"):
+                        progress["agents_failed"] += 1
+                        progress["errors"].append({
+                            "agent": agent.name,
+                            "tier": agent.tier.value,
+                            "error": reaction.reasoning[12:],
+                        })
+                        # Cap stored errors at 20
+                        if len(progress["errors"]) > 20:
+                            progress["errors"] = progress["errors"][-20:]
+                return reaction
 
         tasks = [_limited(agent) for agent in agents]
         return await asyncio.gather(*tasks)

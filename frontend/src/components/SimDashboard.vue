@@ -17,6 +17,33 @@
       </div>
     </div>
 
+    <!-- Per-agent spinner (visible during LLM processing) -->
+    <div class="agent-spinner" v-if="store.agentProgress">
+      <div class="sp-row">
+        <div class="sp-dot"></div>
+        <div class="sp-text">
+          Processing agents {{ store.agentProgress.agents_done }} / {{ store.agentProgress.agents_total }}
+        </div>
+      </div>
+      <div class="sp-bar-wrap">
+        <div class="sp-bar" :style="{ width: agentPct + '%' }"></div>
+      </div>
+      <div class="sp-detail">
+        <span>Round {{ store.agentProgress.round_num }}</span>
+        <span v-if="store.agentProgress.agents_failed > 0" class="sp-fail">
+          {{ store.agentProgress.agents_failed }} failed
+        </span>
+      </div>
+    </div>
+
+    <!-- Pending spinner (no progress data yet) -->
+    <div class="agent-spinner" v-else-if="store.status === 'pending'">
+      <div class="sp-row">
+        <div class="sp-dot"></div>
+        <div class="sp-text">Initializing agents...</div>
+      </div>
+    </div>
+
     <!-- Agent counts by tier -->
     <div class="agent-counts" v-if="store.simId">
       <div class="ac-title">Agents: {{ store.numAgents }}</div>
@@ -60,6 +87,21 @@
         </div>
       </div>
     </div>
+
+    <!-- Error display -->
+    <div class="error-panel" v-if="store.error">
+      <div class="err-title">Simulation error</div>
+      <div class="err-msg">{{ store.error }}</div>
+    </div>
+
+    <div class="error-panel warn" v-if="store.simErrors.length > 0 && !store.error">
+      <div class="err-title">Agent errors ({{ store.simErrors.length }})</div>
+      <div class="err-item" v-for="(e, i) in store.simErrors.slice(-5)" :key="i">
+        <span class="err-agent">{{ e.agent }}</span>
+        <span class="err-tier">{{ tierShort(e.tier) }}</span>
+        <span class="err-detail">{{ e.error }}</span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -79,12 +121,25 @@ const TIERS = [
   { id: 'T7_household',           short: 'Households',      color: '#f06060' },
 ]
 
+const TIER_SHORT = {
+  T1_central_bank: 'CB', T2_macro_hedge_fund: 'HF', T3_commercial_bank: 'BK',
+  T4_institutional_am: 'AM', T5_professional_retail: 'PR',
+  T6_ordinary_retail: 'OR', T7_household: 'HH',
+}
+function tierShort(tier) { return TIER_SHORT[tier] || tier.slice(0, 2) }
+
 const tiersDisplay = computed(() => {
   const latest = store.latestRound
   return TIERS.map(t => ({
     ...t,
     val: latest?.sentiment_by_tier?.[t.id] ?? 0,
   }))
+})
+
+const agentPct = computed(() => {
+  const p = store.agentProgress
+  if (!p || !p.agents_total) return 0
+  return Math.round((p.agents_done / p.agents_total) * 100)
 })
 
 const hfVal = computed(() => {
@@ -116,6 +171,29 @@ const hhVal = computed(() => store.latestRound?.sentiment_by_tier?.T7_household 
 .prog-bar-wrap { height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
 .prog-bar { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s; }
 
+/* Agent spinner */
+.agent-spinner {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; background: var(--bg3);
+}
+.sp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.sp-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--amber);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+.sp-text { font-size: 11px; color: var(--text2); }
+.sp-bar-wrap { height: 3px; background: var(--bg); border-radius: 2px; overflow: hidden; margin-bottom: 6px; }
+.sp-bar {
+  height: 100%; background: var(--amber); border-radius: 2px;
+  transition: width 0.3s;
+}
+.sp-detail { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); }
+.sp-fail { color: #f06060; }
+
 .ac-title { font-size: 11px; color: var(--text3); }
 
 .tier-list { display: flex; flex-direction: column; gap: 6px; }
@@ -143,4 +221,34 @@ const hhVal = computed(() => store.latestRound?.sentiment_by_tier?.T7_household 
 .dc-name { font-size: 10px; color: var(--text3); margin-bottom: 2px; }
 .dc-val { font-size: 16px; font-weight: 600; }
 .dc-arrow { color: var(--text3); font-size: 14px; }
+
+/* Error panels */
+.error-panel {
+  border: 1px solid rgba(240,96,96,0.3); border-radius: 8px;
+  padding: 12px 14px; background: rgba(240,96,96,0.06);
+}
+.error-panel.warn {
+  border-color: rgba(240,168,50,0.3); background: rgba(240,168,50,0.04);
+}
+.err-title {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+  color: #f06060; margin-bottom: 8px;
+}
+.error-panel.warn .err-title { color: var(--amber); }
+.err-msg { font-size: 11px; color: var(--text2); line-height: 1.4; word-break: break-word; }
+.err-item {
+  display: flex; align-items: baseline; gap: 6px;
+  font-size: 10px; color: var(--text2); padding: 3px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.err-item:last-child { border-bottom: none; }
+.err-agent { color: var(--text); font-weight: 500; }
+.err-tier {
+  font-size: 9px; background: var(--bg3); padding: 1px 5px;
+  border-radius: 3px; color: var(--text3);
+}
+.err-detail {
+  flex: 1; color: var(--text3); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
 </style>

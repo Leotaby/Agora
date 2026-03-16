@@ -31,6 +31,10 @@ export const useSimulationStore = defineStore('simulation', {
     // Population preview
     population:     null,
 
+    // Per-agent progress (live during LLM rounds)
+    agentProgress:  null,     // { round_num, agents_done, agents_total, agents_failed }
+    simErrors:      [],       // [{ agent, tier, error }]
+
     // UI state
     loading:        false,
     error:          null,
@@ -140,20 +144,39 @@ export const useSimulationStore = defineStore('simulation', {
         const data = JSON.parse(event.data)
         if (data.event === 'complete') {
           this.status = 'completed'
+          this.agentProgress = null
           es.close()
           this._eventSource = null
-          // Fetch final state for headline etc.
           this._fetchFinal()
           return
         }
         if (data.event === 'error') {
           this.status = 'failed'
+          this.error = data.message || 'Simulation failed'
+          this.agentProgress = null
           es.close()
           this._eventSource = null
           return
         }
+        if (data.event === 'progress') {
+          this.agentProgress = {
+            round_num:     data.round_num,
+            agents_done:   data.agents_done,
+            agents_total:  data.agents_total,
+            agents_failed: data.agents_failed,
+          }
+          if (data.errors?.length) {
+            for (const e of data.errors) {
+              if (!this.simErrors.find(x => x.agent === e.agent && x.tier === e.tier)) {
+                this.simErrors.push(e)
+              }
+            }
+          }
+          return
+        }
 
         this.status = 'running'
+        this.agentProgress = null
         this.roundResults.push({
           round_num: data.round_num,
           sentiment_by_tier: data.sentiment_by_tier,
@@ -225,6 +248,8 @@ export const useSimulationStore = defineStore('simulation', {
       this.numRounds      = 0
       this.roundResults   = []
       this.agentReactions = []
+      this.agentProgress  = null
+      this.simErrors      = []
       this.error          = null
     },
   },

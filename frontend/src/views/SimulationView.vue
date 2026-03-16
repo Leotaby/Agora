@@ -1,51 +1,55 @@
 <template>
   <div class="sim-view">
+    <div class="dashboard-grid">
 
-    <!-- Pre-simulation config overlay -->
-    <div v-if="!store.simId" class="config-overlay">
-      <div class="config-card">
-        <div class="config-title">Configure simulation</div>
-
-        <ShockPanel v-model="selectedShock" :disabled="store.loading" />
-
-        <div class="form-row">
-          <div class="form-group">
-            <label>Households <span class="val">{{ config.n_households }}</span></label>
-            <input type="range" min="50" max="2000" step="50" v-model.number="config.n_households" />
-          </div>
-          <div class="form-group">
-            <label>Rounds <span class="val">{{ config.n_rounds }}</span></label>
-            <input type="range" min="3" max="15" step="1" v-model.number="config.n_rounds" />
-          </div>
-        </div>
-
-        <div class="llm-toggle">
-          <label class="toggle-wrap">
-            <input type="checkbox" v-model="config.use_llm" />
-            <span class="toggle-track"><span class="toggle-thumb"></span></span>
-            <span class="toggle-label">Use real LLM</span>
-          </label>
-          <div class="toggle-note">Off = deterministic stubs (fast). On = real language model calls.</div>
-        </div>
-
-        <button class="run-btn" :disabled="store.loading" @click="run">
-          {{ store.loading ? 'Starting...' : 'Run simulation' }}
-        </button>
-      </div>
-    </div>
-
-    <!-- Dashboard (running / completed) -->
-    <div v-else class="dashboard-grid">
+      <!-- Left: World graph (always visible) -->
       <div class="grid-left">
         <WorldGraph />
       </div>
+
+      <!-- Right sidebar -->
       <div class="grid-right">
-        <SimDashboard />
-        <AgentFeed />
-        <button class="new-btn" @click="store.reset()">New simulation</button>
+
+        <!-- Config panel (pre-simulation) -->
+        <div v-if="!store.simId" class="config-card">
+          <div class="config-title">Configure simulation</div>
+
+          <ShockPanel v-model="selectedShock" :disabled="store.loading" />
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Households <span class="val">{{ config.n_households }}</span></label>
+              <input type="range" min="50" max="2000" step="50" v-model.number="config.n_households" />
+            </div>
+            <div class="form-group">
+              <label>Rounds <span class="val">{{ config.n_rounds }}</span></label>
+              <input type="range" min="3" max="15" step="1" v-model.number="config.n_rounds" />
+            </div>
+          </div>
+
+          <div class="llm-toggle">
+            <label class="toggle-wrap">
+              <input type="checkbox" v-model="config.use_llm" />
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+              <span class="toggle-label">Use real LLM</span>
+            </label>
+            <div class="toggle-note">Off = deterministic stubs (fast). On = real language model calls.</div>
+          </div>
+
+          <button class="run-btn" :disabled="store.loading" @click="run">
+            {{ store.loading ? 'Starting...' : 'Run simulation' }}
+          </button>
+        </div>
+
+        <!-- Live dashboard (during / after simulation) -->
+        <template v-else>
+          <SimDashboard />
+          <AgentFeed />
+          <button class="new-btn" @click="store.reset()">New simulation</button>
+        </template>
+
       </div>
     </div>
-
   </div>
 </template>
 
@@ -78,19 +82,39 @@ function run() {
 </script>
 
 <style scoped>
-.sim-view { padding-top: 32px; }
+.sim-view { padding-top: 24px; }
 
-/* Config overlay */
-.config-overlay { display: flex; justify-content: center; }
-.config-card {
-  max-width: 560px; width: 100%;
-  border: 1px solid var(--border); border-radius: 14px;
-  padding: 28px 32px; background: var(--bg2);
-  display: flex; flex-direction: column; gap: 20px;
+/* Dashboard grid - always active */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  height: calc(100vh - 140px);
 }
-.config-title { font-size: 15px; font-weight: 600; }
 
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-left {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.grid-right {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Config card */
+.config-card {
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 24px; background: var(--bg2);
+  display: flex; flex-direction: column; gap: 18px;
+}
+.config-title { font-size: 14px; font-weight: 600; }
+
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .form-group label {
   font-size: 10px; color: var(--text3); letter-spacing: 0.06em;
   display: flex; justify-content: space-between; margin-bottom: 6px;
@@ -98,7 +122,6 @@ function run() {
 .form-group label .val { color: var(--accent); }
 .form-group input[type=range] { width: 100%; }
 
-.llm-toggle {}
 .toggle-wrap { display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .toggle-track {
   position: relative; width: 30px; height: 16px;
@@ -116,7 +139,7 @@ function run() {
 .toggle-note { font-size: 10px; color: var(--text3); margin-top: 4px; margin-left: 40px; }
 
 .run-btn {
-  width: 100%; padding: 13px; border-radius: 8px;
+  width: 100%; padding: 12px; border-radius: 8px;
   background: var(--accent); color: #080c14;
   border: none; font-size: 13px; font-weight: 600; cursor: pointer;
   transition: background 0.2s;
@@ -124,16 +147,6 @@ function run() {
 .run-btn:hover { background: #6ba3fa; }
 .run-btn:disabled { opacity: 0.5; cursor: default; }
 
-/* Dashboard grid */
-.dashboard-grid {
-  display: grid; grid-template-columns: 2fr 1fr; gap: 20px;
-  min-height: calc(100vh - 140px);
-}
-.grid-left { display: flex; flex-direction: column; }
-.grid-right {
-  display: flex; flex-direction: column; gap: 20px;
-  max-height: calc(100vh - 140px); overflow-y: auto;
-}
 .new-btn {
   padding: 10px 20px; border-radius: 7px; border: 1px solid var(--border2);
   background: transparent; color: var(--text2); font-size: 12px;
@@ -142,7 +155,7 @@ function run() {
 .new-btn:hover { border-color: var(--text2); color: var(--text); }
 
 @media (max-width: 1024px) {
-  .dashboard-grid { grid-template-columns: 1fr; }
+  .dashboard-grid { grid-template-columns: 1fr; height: auto; }
   .grid-left { min-height: 400px; }
 }
 </style>

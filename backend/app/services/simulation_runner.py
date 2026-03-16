@@ -67,16 +67,27 @@ class SimulationRunner:
             # Filter agents active in this round (respect tier delay)
             active_agents = self._get_active_agents(simulation.agents, shock, round_num)
 
+            # Reset progress for this round
+            simulation.progress = {
+                "round_num": round_num,
+                "agents_total": len(active_agents),
+                "agents_done": 0,
+                "agents_failed": 0,
+                "errors": [],
+            }
+
             if verbose:
                 console.print(f"[dim]({len(active_agents)} active agents)[/dim]")
 
             # Get reactions
             if self.use_llm and self.engine:
                 reactions = await self.engine.react_batch(
-                    active_agents, shock, round_num, self.concurrency
+                    active_agents, shock, round_num, self.concurrency,
+                    progress=simulation.progress,
                 )
             else:
                 reactions = self._stub_reactions(active_agents, shock, round_num)
+                simulation.progress["agents_done"] = len(active_agents)
 
             # Build round result
             result = RoundResult(

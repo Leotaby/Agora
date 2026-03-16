@@ -89,6 +89,15 @@ class Simulation:
     round_results: list[RoundResult] = field(default_factory=list)
     final_report: str = ""
 
+    # Live progress (updated by runner during execution)
+    progress: dict = field(default_factory=lambda: {
+        "round_num": -1,
+        "agents_total": 0,
+        "agents_done": 0,
+        "agents_failed": 0,
+        "errors": [],
+    })
+
     @property
     def num_agents(self) -> int:
         return len(self.agents)
