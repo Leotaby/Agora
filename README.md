@@ -12,15 +12,15 @@
 
 ## 1. Research question
 
-How does a localized banking shock — a sovereign debt write-down, a sudden funding freeze, a fire-sale spiral — cascade through the interbank network to produce systemic collapse? AGORA simulates the transmission of financial contagion through an agent-based model of interconnected bank balance sheets, calibrated to the European banking system.
+How does a localized banking shock, a sovereign debt write-down, a sudden funding freeze, a fire-sale spiral, cascade through the interbank network to produce systemic collapse? AGORA simulates the transmission of financial contagion through an agent-based model of interconnected bank balance sheets, calibrated to the European banking system.
 
 The simulator models five contagion channels:
 
-1. **Solvency channel** — Asset write-downs erode CET1 capital, triggering forced deleveraging
-2. **Liquidity channel** — Wholesale funding freezes propagate through the network
-3. **Counterparty channel** — Interbank exposure losses cascade from defaulting banks to creditors
-4. **Fire sale channel** — Forced asset sales depress prices, triggering mark-to-market losses system-wide
-5. **Confidence channel** — Credit spreads widen, funding costs spike, marginal banks become unviable
+1. **Solvency channel** - Asset write-downs erode CET1 capital, triggering forced deleveraging
+2. **Liquidity channel** - Wholesale funding freezes propagate through the network
+3. **Counterparty channel** - Interbank exposure losses cascade from defaulting banks to creditors
+4. **Fire sale channel** - Forced asset sales depress prices, triggering mark-to-market losses system-wide
+5. **Confidence channel** - Credit spreads widen, funding costs spike, marginal banks become unviable
 
 ## 2. Bank network
 
@@ -99,8 +99,9 @@ The default scenario simulates a 30% write-down on Italian government bonds:
 
 ## 7. Author
 
-Hatef (Leo) Tabbakhian
-PhD candidate (target: GSEFM, Goethe University Frankfurt, 2026)
+Hatef Tabbakhian (Leo)
+PhD candidate
+  
 MSc Economics and Finance, Universita Federico II di Napoli
 
 ## License
