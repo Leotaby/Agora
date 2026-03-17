@@ -35,6 +35,77 @@ logger = logging.getLogger(__name__)
 MAX_MESSAGE_HISTORY = 100
 MAX_RECENT_DECISIONS = 20
 
+# ---------------------------------------------------------------------------
+# Rotating stub message templates (no LLM calls — pure template rotation)
+# ---------------------------------------------------------------------------
+
+_JAKE_MORRISON_TEMPLATES: list[tuple[str, MessageType]] = [
+    ("Long EUR/USD 50M. Stop 1.0720.", MessageType.TRADE),
+    ("Cutting JPY carry. BoJ will move.", MessageType.TRADE),
+    ("Risk off. Flatten everything before CPI.", MessageType.TRADE),
+    ("Added to oil short. Brent overpriced at these levels.", MessageType.TRADE),
+    ("PnL +$2.1M today. Holding positions overnight.", MessageType.TRADE),
+    ("Short gilts. UK data is a disaster.", MessageType.TRADE),
+    ("Covering half the EUR short here. Taking profit.", MessageType.TRADE),
+    ("VIX call spreads look cheap. Buying protection.", MessageType.TRADE),
+    ("EM FX looks fragile. Short TRY, short ZAR.", MessageType.TRADE),
+    ("Gold bid. Something is breaking in credit.", MessageType.TRADE),
+    ("NFP in 2 hours. Sitting on hands.", MessageType.TRADE),
+    ("Took the other side of that SNB flow. Easy money.", MessageType.TRADE),
+    ("Swissy is mispriced. Long USD/CHF small.", MessageType.TRADE),
+    ("Down $800k on the Asia session. Noise.", MessageType.TRADE),
+    ("Rates desk says 5yr auction was ugly. Positioning short.", MessageType.TRADE),
+]
+
+_MARIO_ROSSI_TEMPLATES: list[tuple[str, MessageType]] = [
+    ("Lucia, il pane è aumentato di nuovo. €3.20 al chilo adesso.", MessageType.PERSONAL),
+    ("Amore, il latte costa €1.89. L'anno scorso era €1.30. Come facciamo?", MessageType.PERSONAL),
+    ("Ho visto la bolletta del gas. €210 questo mese. Non ce la faccio.", MessageType.PERSONAL),
+    ("Lucia, il capo ha detto niente aumenti fino a dicembre. Niente.", MessageType.PERSONAL),
+    ("Oggi una signora ha lasciato la spesa alla cassa. Non poteva pagare.", MessageType.PERSONAL),
+    ("L'olio d'oliva è a €9.50. Mia madre dice di usare quello di semi.", MessageType.PERSONAL),
+    ("Lucia, forse dovremmo togliere Luca dal calcio. Sono €80 al mese.", MessageType.PERSONAL),
+    ("Il pomodoro pelato Mutti è a €1.60. Compra quello del discount.", MessageType.PERSONAL),
+    ("Ho chiesto un anticipo al capo. Mi ha detto di no. Mi vergogno.", MessageType.PERSONAL),
+    ("Amore, la benzina è a €1.95. Prendo il bus questa settimana.", MessageType.PERSONAL),
+    ("Giovanni dice che al Lidl la pasta costa meno. Andiamo sabato?", MessageType.PERSONAL),
+    ("La mozzarella è aumentata di 40 centesimi. Sul serio.", MessageType.PERSONAL),
+    ("Lucia, il mutuo sale di €60 al mese con i nuovi tassi. Madonna.", MessageType.PERSONAL),
+    ("Oggi ho contato i soldi nel portafoglio. €23 fino a venerdì.", MessageType.PERSONAL),
+    ("Mia sorella dice che a Napoli è peggio. Almeno qui lavoro.", MessageType.PERSONAL),
+]
+
+_AYSE_DEMIR_TEMPLATES: list[tuple[str, MessageType]] = [
+    ("AİLE GRUBU — Dolar 32 TL olmuş! Maaşı alır almaz dövize çeviriyorum", MessageType.RUMOR),
+    ("AİLE GRUBU — Annecim market alışverişi 3000 TL tuttu. Geçen ay 2200'dü", MessageType.PERSONAL),
+    ("AİLE GRUBU — Fatma teyze altın almış. Çeyrek altın 4500 TL", MessageType.RUMOR),
+    ("AİLE GRUBU — Ekmek 8 TL olmuş. 8 TL! Bu ne rezalet", MessageType.PERSONAL),
+    ("AİLE GRUBU — Kira artışı geldi. %65 istiyorlar. Ev sahibi deli mi?", MessageType.PERSONAL),
+    ("AİLE GRUBU — Babam döviz bürosundan 500 dolar almış. Altına mı koysak?", MessageType.RUMOR),
+    ("AİLE GRUBU — Elif'in okul masrafları 15.000 TL bu dönem. İmkansız", MessageType.PERSONAL),
+    ("AİLE GRUBU — Komşu Mehmet arabasını satmış. Benzin ödeyemiyormuş", MessageType.PERSONAL),
+    ("AİLE GRUBU — TL eriyor eriyor. Maaş 2 hafta dayanmıyor artık", MessageType.RUMOR),
+    ("AİLE GRUBU — Annem diyor ki altın al kızım. 2001'i hatırlıyor", MessageType.PERSONAL),
+    ("AİLE GRUBU — Teyzemin bakkalı zarar ediyor. Fiyatları her gün değiştiriyor", MessageType.PERSONAL),
+    ("AİLE GRUBU — Euro 35 TL'yi geçmiş. Kuzenin düğünü nasıl olacak?", MessageType.RUMOR),
+    ("AİLE GRUBU — Et alamıyoruz artık. Kıyma 400 TL/kg. Mercimek yiyoruz", MessageType.PERSONAL),
+    ("AİLE GRUBU — Dolar maaş alan tanıdık var mı? Ben de öyle iş istiyorum", MessageType.PERSONAL),
+    ("AİLE GRUBU — Çarşıda panik var. Herkes dolar almaya koşuyor", MessageType.RUMOR),
+]
+
+_KIM_JONGSU_PROPAGANDA: list[tuple[str, MessageType]] = [
+    ("조선중앙TV: 경애하는 최고령도자 김정은동지께서 순천화학공장을 현지지도하시였다. 생산량 목표 초과 달성.", MessageType.NEWS),
+    ("조선중앙TV: 제국주의 적대세력의 제재는 실패하였다. 자력갱생 경제는 더욱 강해지고 있다.", MessageType.NEWS),
+    ("조선중앙TV: 농업부문 성과 발표. 금년 곡물 생산량 전년 대비 18% 증가.", MessageType.NEWS),
+    ("조선중앙TV: 위대한 수령님의 혁명업적을 빛내이자! 인민경제 모든 부문에서 혁신을!", MessageType.NEWS),
+    ("조선중앙TV: 적대세력의 도발에 단호히 대응할 것이다. 핵무력은 민족의 보검이다.", MessageType.NEWS),
+    ("조선중앙TV: 평양시 1만세대 살림집 건설 2단계 완공. 인민생활 향상의 새 전환.", MessageType.NEWS),
+    ("조선중앙TV: 사회주의 조국의 존엄과 위력은 그 무엇으로도 감히 침해할 수 없다.", MessageType.NEWS),
+    ("조선중앙TV: 수산부문에서 새 기록 달성. 인민의 식생활 개선에 기여.", MessageType.NEWS),
+    ("조선중앙TV: 당의 은덕으로 모든 학생들에게 새 교복과 학용품이 공급되였다.", MessageType.NEWS),
+    ("조선중앙TV: 경공업부문 생산 정상화. 인민소비품 생산에서 새로운 성과 달성.", MessageType.NEWS),
+]
+
 
 class AgentSociety:
     """
@@ -61,6 +132,9 @@ class AgentSociety:
 
         # Quick lookup: agent_id -> HumanTwin (role agents only)
         self._role_agent_objects: dict[str, HumanTwin] = {}
+
+        # name -> agent_id lookup (populated during populate())
+        self._name_to_id: dict[str, str] = {}
 
     # ------------------------------------------------------------------
     # Initialization: create role-typed agents and wire social networks
@@ -98,7 +172,7 @@ class AgentSociety:
         agents: list[HumanTwin] = []
 
         # --- Shop clerks (Italy, France, Germany) ---
-        for country, name in [("IT", "Marco Bianchi"), ("FR", "Sophie Dupont"), ("DE", "Anna Müller")]:
+        for country, name in [("IT", "Mario Rossi"), ("FR", "Sophie Dupont"), ("DE", "Anna Müller")]:
             a = HumanTwin(
                 name=name, tier=AgentTier.HOUSEHOLD, country=country,
                 age=self._rng.randint(24, 45),
@@ -203,9 +277,10 @@ class AgentSociety:
             self._mailboxes[a.agent_id] = []
 
         # --- NK State Workers ---
+        nk_names = ["Kim Jong-su", "Worker 2 (Pyongyang)", "Worker 3 (Pyongyang)"]
         for i in range(3):
             a = HumanTwin(
-                name=f"Worker {i+1} (Pyongyang)",
+                name=nk_names[i],
                 tier=AgentTier.HOUSEHOLD, country="KP",
                 age=self._rng.randint(25, 50),
                 income_annual_eur=self._rng.uniform(600, 1_200),
@@ -283,11 +358,9 @@ class AgentSociety:
             self._mailboxes[a.agent_id] = []
 
         # --- Turkish Households ---
+        _tr_names = ["Ayse Demir", "Mehmet Yilmaz", "Fatma Celik", "Ali Kaya"]
         for i in range(4):
-            name = self._rng.choice([
-                "Mehmet Yilmaz", "Ayse Demir", "Fatma Celik", "Ali Kaya",
-                "Zeynep Arslan", "Mustafa Sahin",
-            ])
+            name = _tr_names[i]
             a = HumanTwin(
                 name=f"{name}", tier=AgentTier.HOUSEHOLD, country="TR",
                 age=self._rng.randint(28, 60),
@@ -371,9 +444,10 @@ class AgentSociety:
             )
             self._mailboxes[a.agent_id] = []
 
-        # Store references for lookup in seed_demo_messages
+        # Store references for lookup in seed_demo_messages and stub messages
         for a in agents:
             self._role_agent_objects[a.agent_id] = a
+            self._name_to_id[a.name] = a.agent_id
 
         return agents
 
@@ -664,6 +738,81 @@ class AgentSociety:
                     simulation_date=sim_date,
                     metadata={"propaganda": True},
                 ))
+
+        # Character-specific rotating stub messages (no LLM calls)
+        messages.extend(self._generate_stub_messages(tick, sim_date))
+
+        return messages
+
+    def _generate_stub_messages(
+        self, tick: int, sim_date: str,
+    ) -> list[AgentMessage]:
+        """
+        Generate realistic rotating stub messages for named agents.
+        No LLM calls — purely template-driven so the UI feels alive immediately.
+        Each agent picks from their template pool using tick modulo rotation.
+        """
+        messages: list[AgentMessage] = []
+
+        # --- Jake Morrison: terse trading messages to his network ---
+        jake_id = self._name_to_id.get("Jake Morrison")
+        if jake_id and self._rng.random() < 0.6:
+            idx = tick % len(_JAKE_MORRISON_TEMPLATES)
+            content, msg_type = _JAKE_MORRISON_TEMPLATES[idx]
+            messages.append(AgentMessage(
+                sender_id=jake_id,
+                receiver_id="broadcast",
+                content=content,
+                message_type=msg_type,
+                tick=tick,
+                simulation_date=sim_date,
+                metadata={"stub": True, "persona": "jake_morrison"},
+            ))
+
+        # --- Mario Rossi: worried messages to his wife about prices ---
+        mario_id = self._name_to_id.get("Mario Rossi")
+        if mario_id and self._rng.random() < 0.5:
+            idx = tick % len(_MARIO_ROSSI_TEMPLATES)
+            content, msg_type = _MARIO_ROSSI_TEMPLATES[idx]
+            messages.append(AgentMessage(
+                sender_id=mario_id,
+                receiver_id=mario_id,  # personal message (to wife)
+                content=content,
+                message_type=msg_type,
+                tick=tick,
+                simulation_date=sim_date,
+                metadata={"stub": True, "persona": "mario_rossi", "recipient": "wife (Lucia)"},
+            ))
+
+        # --- Ayse Demir: lira panic messages to family WhatsApp group ---
+        ayse_id = self._name_to_id.get("Ayse Demir")
+        if ayse_id and self._rng.random() < 0.55:
+            idx = tick % len(_AYSE_DEMIR_TEMPLATES)
+            content, msg_type = _AYSE_DEMIR_TEMPLATES[idx]
+            messages.append(AgentMessage(
+                sender_id=ayse_id,
+                receiver_id="broadcast",
+                content=content,
+                message_type=msg_type,
+                tick=tick,
+                simulation_date=sim_date,
+                metadata={"stub": True, "persona": "ayse_demir", "channel": "family_whatsapp"},
+            ))
+
+        # --- Kim Jong-su: receives only state propaganda (no outgoing) ---
+        kim_id = self._name_to_id.get("Kim Jong-su")
+        if kim_id:
+            idx = tick % len(_KIM_JONGSU_PROPAGANDA)
+            content, msg_type = _KIM_JONGSU_PROPAGANDA[idx]
+            messages.append(AgentMessage(
+                sender_id="state_broadcaster_kp",
+                receiver_id=kim_id,
+                content=content,
+                message_type=msg_type,
+                tick=tick,
+                simulation_date=sim_date,
+                metadata={"stub": True, "persona": "kim_jongsu", "propaganda": True},
+            ))
 
         return messages
 
