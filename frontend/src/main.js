@@ -5,6 +5,7 @@ import App from './App.vue'
 import HomeView from './views/HomeView.vue'
 import SimulationView from './views/SimulationView.vue'
 import WorldView from './views/WorldView.vue'
+import BankingView from './views/BankingView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -13,6 +14,7 @@ const router = createRouter({
     { path: '/simulate',     component: SimulationView },
     { path: '/simulate/:id', component: SimulationView },
     { path: '/world',        component: WorldView      },
+    { path: '/banking',      component: BankingView    },
   ]
 })
 

@@ -8,6 +8,7 @@
         <router-link to="/">Home</router-link>
         <router-link to="/simulate">Simulate</router-link>
         <router-link to="/world">World</router-link>
+        <router-link to="/banking">Banking</router-link>
         <a href="https://github.com/Leotaby/nexus-sim" target="_blank">GitHub ↗</a>
       </div>
     </nav>
