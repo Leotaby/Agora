@@ -1,9 +1,8 @@
-# NEXUS
+# AGORA
 
-**Heterogeneous-agent simulation of exchange rate dynamics with LLM-driven cognition**
+**Agent-Based Banking Stability Simulator**
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![Agent-based](https://img.shields.io/badge/Agent--based-285%20agents-D97757?style=flat-square)](https://github.com/Leotaby/nexus-sim)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Vue 3](https://img.shields.io/badge/Vue-3.4-4FC08D?style=flat-square&logo=vuedotjs&logoColor=white)](https://vuejs.org)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-purple?style=flat-square)](LICENSE)
@@ -11,140 +10,94 @@
 
 ---
 
-## 1. Scientific question
+## 1. Research question
 
-The Meese and Rogoff (1983) exchange rate disconnect puzzle remains one of the most persistent failures of international macroeconomics. No structural model has been shown to outperform a random walk at short horizons, despite the fact that macro fundamentals clearly matter at longer horizons (Engel and West, 2005; Itskhoki and Mukhin, 2021). The standard explanation points to unobserved expectation heterogeneity across market participants, but existing models either impose representative-agent assumptions or calibrate only two or three agent types.
+How does a localized banking shock — a sovereign debt write-down, a sudden funding freeze, a fire-sale spiral — cascade through the interbank network to produce systemic collapse? AGORA simulates the transmission of financial contagion through an agent-based model of interconnected bank balance sheets, calibrated to the European banking system.
 
-NEXUS proposes a different approach. Rather than estimating a reduced-form model of the aggregate exchange rate, NEXUS constructs the full population of heterogeneous agents that *produce* the exchange rate as an emergent outcome. Each agent is an LLM-driven cognitive twin with an empirically calibrated economic profile (income, wealth, debt, financial literacy, risk tolerance) drawn from real survey microdata. A macro shock propagates through the agent population at different speeds depending on each agent's tier, information access, and cognitive architecture. The exchange rate disconnect arises endogenously from the gap between fast-processing institutional agents and slow-processing households.
+The simulator models five contagion channels:
 
-The core hypothesis: **the Meese-Rogoff disconnect is not a model failure but a measurement of cognitive heterogeneity in shock absorption speed.**
+1. **Solvency channel** — Asset write-downs erode CET1 capital, triggering forced deleveraging
+2. **Liquidity channel** — Wholesale funding freezes propagate through the network
+3. **Counterparty channel** — Interbank exposure losses cascade from defaulting banks to creditors
+4. **Fire sale channel** — Forced asset sales depress prices, triggering mark-to-market losses system-wide
+5. **Confidence channel** — Credit spreads widen, funding costs spike, marginal banks become unviable
 
-## 2. Preliminary results
+## 2. Bank network
 
-The following results come from a live simulation run: Fed +75bps rate hike, 285 agents across 10 countries, 2 rounds.
+Five preset banks form a core-periphery interbank network:
 
-```
-Fed raises rates +75bps
-        |
-        |-- T1 Central banks      instant     sentiment: +0.438   (hawkish response)
-        |-- T2 Macro hedge funds   instant     sentiment: +0.605   (aggressive USD long)
-        |-- T3 Commercial banks    instant     sentiment: +0.448   (widen spreads, lean into flow)
-        |-- T4 Institutional AMs   round 1     sentiment: -0.086   (mechanical rebalancing, sell USD)
-        |-- T5 Professional FX     instant     sentiment: +0.677   (short EUR/USD)
-        |-- T6 Ordinary retail     round 1     sentiment: +0.552   (FOMO buying USD)
-        |-- T7 Households          round 3+    sentiment:  n/a     (not yet activated)
-```
+| Bank | Type | Country | Role |
+|------|------|---------|------|
+| ECB | Central bank | EU | Lender of last resort (ELA, TLTRO) |
+| Deutsche Bank | G-SIB | DE | Dense core, massive derivatives book |
+| BNP Paribas | G-SIB | FR | Diversified eurozone exposure |
+| UniCredit | National champion | IT | Italian sovereign concentration |
+| Bayerische Landesbank | Landesbank | DE | Small, concentrated, fragile |
 
-**Key observations:**
+Each bank is a fully specified balance sheet: assets (loans, securities, interbank lending, CB reserves), liabilities (deposits, wholesale funding, interbank borrowing, bonds), capital (CET1 ratio, leverage ratio), and liquidity buffers (LCR, NSFR).
 
-- Hedge funds react with strong positive sentiment (+0.605), reasoning through carry trade implications and rate differential widening. They articulate a clear macro thesis and size positions accordingly.
-- Institutional asset managers are the only tier to show *negative* sentiment (-0.086) in round 1. Their reasoning cites mechanical portfolio rebalancing: USD appreciation triggers a drift above target FX allocation, requiring them to *sell* USD to restore hedge ratios. This is exactly the behavior documented in the pension fund hedging literature (Campbell, Serfaty-de Medeiros, and Viceira, 2010).
-- Ordinary retail traders show strong positive sentiment (+0.552) driven by FOMO and headline reaction, consistent with ESMA data showing retail traders systematically overweight momentum signals.
-- Commercial banks widen bid/ask spreads and accumulate inventory, acting as liquidity providers rather than directional traders.
-- The disconnect gap between hedge funds at t=0 (+0.605) and households (not yet reacting) captures the core Meese-Rogoff mechanism in real time.
-- Net USD flow accelerates from +18.0 in round 0 to +52.2 in round 1 as retail enters.
-
-## 3. Seven-tier agent hierarchy
-
-Each tier is populated with agents whose economic profiles are drawn from empirical calibration sources. The cognitive architecture (system prompt) is tier-specific, encoding the agent's information processing speed, decision heuristics, and behavioral biases.
-
-| Tier | Agent type | N (default) | Calibration source | Information speed | Behavioral prior |
-|------|-----------|-------------|-------------------|------------------|-----------------|
-| T1 | Central banks (Fed, ECB, BoJ, BoE, SNB, PBoC) | 6 | Taylor rule literature, FOMC transcripts | Instant | Mandate-constrained, stability-seeking |
-| T2 | Global macro hedge funds | 6 | CFTC Commitment of Traders | Instant | Carry + momentum + fundamental macro |
-| T3 | Commercial bank FX desks | 5 | BIS Triennial FX Survey (2022) | Instant | Market-making, spread capture, flow internalization |
-| T4 | Institutional asset managers (pension, SWF) | 5 | Pension FX hedge ratio surveys | 1 round delay | Mechanical rebalancing, liability-driven |
-| T5 | Professional retail FX | 50 | OANDA/IG client positioning data | Instant | Technical analysis, leveraged (30:1) |
-| T6 | Ordinary retail FX | 150 | ESMA retail trader loss reports | 1 round delay | Social media, herding, FOMO |
-| T7 | Households (real economy) | scaled by country | ECB HFCS panel (waves 2010-2021) | 3 round delay | Savings reallocation, dollarization, consumption |
-
-Household agents are calibrated from the ECB Household Finance and Consumption Survey at the country level. Income and wealth follow lognormal distributions fitted to HFCS country medians. Financial literacy is drawn from a beta distribution calibrated to country-level HFCS literacy scores. Countries currently covered: DE, FR, IT, ES, NL, BE, PT, GR, AT, FI, US, CN, IN, TR, AR, RU, IR.
-
-## 4. Architecture
+## 3. Architecture
 
 ```
-nexus/
+agora/
 |-- backend/
 |   |-- app/
-|   |   |-- config.py                    # Pydantic Settings (env vars)
 |   |   |-- models/
-|   |   |   |-- agent.py                 # HumanTwin dataclass (core agent)
-|   |   |   |-- shock.py                 # MacroShock (rate hike, sanctions, etc.)
-|   |   |   |-- simulation.py            # Simulation, RoundResult, AgentReaction
-|   |   |   |-- world.py                 # World state container
-|   |   |   |-- country.py               # Country model (14 nations)
-|   |   |   |-- institution.py           # International institutions (IMF, BIS, etc.)
-|   |   |   |-- geopolitical.py          # Sanctions regimes, alliances
-|   |   |   |-- political_actor.py       # Parties, governments
-|   |   |   |-- nonstate_actor.py        # Non-state actors (threat modeling)
+|   |   |   |-- bank.py                 # Bank balance sheets, funding stress, regulatory ratios
+|   |   |   |-- interbank_network.py    # Directed weighted interbank lending graph
+|   |   |   |-- agent.py               # HumanTwin agent dataclass
+|   |   |   |-- shock.py               # MacroShock definitions
+|   |   |   |-- simulation.py          # Simulation state, round results
 |   |   |-- services/
-|   |   |   |-- llm_engine.py            # LLM subprocess calls per agent
-|   |   |   |-- simulation_runner.py     # Round orchestration, batch processing
-|   |   |   |-- agent_factory.py         # Population factory (HFCS calibration)
-|   |   |   |-- world_factory.py         # Full world builder (all entity layers)
+|   |   |   |-- contagion_engine.py     # Five-channel contagion propagation
+|   |   |   |-- llm_engine.py          # LLM calls per agent
+|   |   |   |-- simulation_runner.py   # Round orchestration
+|   |   |   |-- agent_factory.py       # Agent population factory
 |   |   |-- api/
-|   |   |   |-- routes.py                # FastAPI endpoints
-|   |   |-- utils/
-|   |       |-- logger.py                # Structured JSONL logging
-|   |       |-- population_stats.py      # Descriptive statistics
-|   |-- scripts/
-|   |   |-- run_world_simulation.py      # Full world simulation (main entry)
-|   |   |-- run_forex_simulation.py      # FX-only population test
-|   |   |-- run_macro_shock.py           # Factory + runner + report pipeline
-|   |   |-- run_parallel_simulation.py   # Parallel batch runner
-|   |   |-- test_agent_profile.py        # Agent prompt inspection
-|   |   |-- action_logger.py             # Reaction logging utilities
-|   |-- run.py                           # FastAPI + uvicorn entry point
-|   |-- requirements.txt
-|   |-- pyproject.toml
+|   |   |   |-- banking_routes.py      # Banking contagion simulation API
+|   |   |   |-- routes.py             # Core FastAPI endpoints
+|   |-- run.py                         # Uvicorn entry point
 |-- frontend/
 |   |-- src/
-|   |   |-- App.vue                      # Root component
 |   |   |-- views/
-|   |   |   |-- HomeView.vue             # Tier cards + population stats
-|   |   |   |-- SimulationView.vue       # Real-time simulation dashboard
-|   |   |-- stores/
-|   |       |-- simulation.js            # Pinia state management
-|   |-- vite.config.js
+|   |   |   |-- BankingView.vue        # D3 network graph, contagion timeline, narrative panel
 |-- docker-compose.yml
 |-- Dockerfile
 ```
 
-## 5. Quick start
+## 4. Quick start
 
-Requires Python >= 3.11 and [uv](https://github.com/astral-sh/uv). LLM calls require a language model backend (configured via `LLM_CLI` in `.env`).
+Requires Python >= 3.11 and [uv](https://github.com/astral-sh/uv).
 
 ```bash
-# 1. Install Python dependencies
+# Install dependencies
 cd backend && uv sync
 
-# 2. Run a Fed rate hike simulation (285 agents, 2 rounds, real LLM reasoning)
-uv run python scripts/run_world_simulation.py --fed-hike --hh 10 --rounds 2
+# Run the Italian sovereign crisis scenario
+uv run python -c "from app.services.contagion_engine import ContagionEngine, BankingShock; e = ContagionEngine.build(); e.apply_shock(BankingShock.ITALIAN_SOVEREIGN_CRISIS); e.run_contagion()"
 
-# 3. Run with stub reactions (no LLM, for CI or offline testing)
-uv run python scripts/run_world_simulation.py --fed-hike --hh 10 --rounds 2 --no-llm
+# Start the API server
+uv run python run.py
 ```
 
-Available shock scenarios: `--fed-hike`, `--ecb-cut`, `--russia-sanction`, `--oil-cut`, `--nk-cyber`, `--argentina-default`.
+## 5. Scenario: Italian sovereign crisis
+
+The default scenario simulates a 30% write-down on Italian government bonds:
+
+1. UniCredit takes an immediate solvency hit from sovereign exposure
+2. Interbank counterparties (Deutsche Bank, BNP) mark down UniCredit lending
+3. Wholesale funding freezes as confidence drops
+4. Fire sales of liquid assets depress market prices
+5. ECB intervenes as lender of last resort (ELA facility)
 
 ## 6. Target publications
 
 | # | Working title | Target journal | Status |
 |---|--------------|---------------|--------|
-| P1 | NEXUS: An LLM-driven heterogeneous-agent model for exchange rate dynamics | Journal of Economic Dynamics and Control | Framework paper |
-| P2 | Resolving the Meese-Rogoff disconnect via heterogeneous information processing speeds | Journal of Monetary Economics | Core theoretical contribution |
-| P3 | Household dollarization as emergent behavior: evidence from a calibrated agent-based model | Journal of International Economics | HFCS-calibrated household layer |
-| P4 | Retail herding and FX momentum: an agent-based decomposition of the carry trade | Journal of Financial Economics | Tier interaction dynamics |
-| P5 | Policy counterfactuals in a synthetic economy: CBDC adoption and monetary transmission | Review of Financial Studies | Policy simulation layer |
+| P1 | Systemic risk transmission in a heterogeneous banking network: an agent-based approach | Journal of Financial Stability | Framework paper |
+| P2 | Contagion channels and central bank intervention: lessons from a simulated Italian sovereign crisis | Journal of Money, Credit and Banking | Core contribution |
 
-## 7. References
-
-- Campbell, J. Y., Serfaty-de Medeiros, K., & Viceira, L. M. (2010). Global currency hedging. *Journal of Finance*, 65(1), 87-121.
-- Engel, C., & West, K. D. (2005). Exchange rates and fundamentals. *Journal of Political Economy*, 113(3), 485-517.
-- Itskhoki, O., & Mukhin, D. (2021). Exchange rate disconnect in general equilibrium. *Journal of Political Economy*, 129(8), 2183-2232.
-- Meese, R. A., & Rogoff, K. (1983). Empirical exchange rate models of the seventies: Do they fit out of sample? *Journal of International Economics*, 14(1-2), 3-24.
-
-## 8. Author
+## 7. Author
 
 Hatef (Leo) Tabbakhian
 PhD candidate (target: GSEFM, Goethe University Frankfurt, 2026)
