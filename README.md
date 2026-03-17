@@ -100,7 +100,7 @@ The default scenario simulates a 30% write-down on Italian government bonds:
 ## 7. Author
 
 Hatef Tabbakhian (Leo)
-PhD candidate
+
   
 MSc Economics and Finance, Universita Federico II di Napoli
 
