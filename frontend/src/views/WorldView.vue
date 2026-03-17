@@ -1,12 +1,200 @@
 <template>
-  <div class="world-view" ref="rootEl">
-    <!-- Full-screen D3 force graph -->
+  <div class="world-view">
+    <!-- Full-screen D3 force graph (background) -->
     <div class="wv-graph" ref="graphEl">
       <svg ref="svgEl"></svg>
     </div>
 
-    <!-- Status bar (top-left overlay) -->
-    <div class="wv-status">
+    <!-- Left sidebar: Agent roles + agent list -->
+    <div class="wv-left" :class="{ expanded: !!store.selectedRole }">
+      <div class="wl-header">Agents</div>
+
+      <!-- Role list -->
+      <div class="wl-roles">
+        <button
+          class="wr-btn"
+          v-for="r in store.roles"
+          :key="r.role"
+          :class="{ active: store.selectedRole === r.role }"
+          @click="store.selectRole(r.role)"
+        >
+          <span class="wr-icon">{{ r.icon }}</span>
+          <span class="wr-label">{{ r.label }}</span>
+          <span class="wr-count">{{ r.count }}</span>
+        </button>
+        <div class="wl-empty" v-if="store.roles.length === 0">
+          Initialize world first
+        </div>
+      </div>
+
+      <!-- Agent list (when a role is selected) -->
+      <div class="wl-agents" v-if="store.selectedRole && store.roleAgents.length">
+        <div class="wl-sub">{{ store.roleAgents.length }} agents</div>
+        <button
+          class="wa-btn"
+          v-for="a in store.roleAgents"
+          :key="a.agent_id"
+          :class="{ active: store.selectedAgentId === a.agent_id }"
+          @click="store.fetchPerspective(a.agent_id)"
+        >
+          <span class="wa-name">{{ a.name }}</span>
+          <span class="wa-country">{{ flag(a.country) }}</span>
+        </button>
+      </div>
+
+      <button class="wl-back" v-if="store.selectedRole" @click="store.clearPerspective()">
+        Clear
+      </button>
+    </div>
+
+    <!-- Agent Perspective Panel (foreground overlay) -->
+    <div class="wv-perspective" v-if="store.perspective && !store.perspectiveLoading">
+      <div class="wp-header">
+        <div class="wp-identity">
+          <span class="wp-icon">{{ store.perspective.role_icon }}</span>
+          <div>
+            <div class="wp-name">{{ store.perspective.name }}</div>
+            <div class="wp-role">{{ store.perspective.role_label }} · {{ flag(store.perspective.country) }} {{ store.perspective.country }} · Age {{ store.perspective.age }}</div>
+          </div>
+        </div>
+        <button class="wp-close" @click="store.clearPerspective()">x</button>
+      </div>
+
+      <div class="wp-body">
+        <!-- Beliefs -->
+        <div class="wp-section">
+          <div class="wp-stitle">Beliefs</div>
+          <div class="wp-beliefs">
+            <div class="wb-row" v-for="(val, key) in store.perspective.life.beliefs" :key="key">
+              <span class="wb-key">{{ formatBelief(key) }}</span>
+              <div class="wb-bar-bg">
+                <div class="wb-bar" :style="{ width: (val * 100) + '%', background: beliefColor(val) }"></div>
+              </div>
+              <span class="wb-val">{{ (val * 100).toFixed(0) }}%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Portfolio -->
+        <div class="wp-section">
+          <div class="wp-stitle">Portfolio</div>
+          <div class="wp-portfolio">
+            <div class="wpo-item" v-for="(val, key) in store.perspective.portfolio" :key="key">
+              <span class="wpo-key">{{ key.replace(/_/g, ' ') }}</span>
+              <span class="wpo-val" v-if="key === 'net_wealth_eur'">{{ formatMoney(val) }}</span>
+              <span class="wpo-val" v-else>{{ (val * 100).toFixed(1) }}%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Decisions -->
+        <div class="wp-section">
+          <div class="wp-stitle">Recent Decisions</div>
+          <div class="wp-decisions">
+            <div class="wd-card" v-for="(d, i) in store.perspective.life.recent_decisions" :key="i">
+              <div class="wd-action">{{ d.action }}</div>
+              <div class="wd-reason">{{ d.reasoning }}</div>
+            </div>
+            <div class="wp-empty" v-if="!store.perspective.life.recent_decisions.length">
+              No decisions yet
+            </div>
+          </div>
+        </div>
+
+        <!-- Messages -->
+        <div class="wp-section">
+          <div class="wp-stitle">Messages ({{ store.perspective.recent_messages.length }})</div>
+          <div class="wp-messages">
+            <div class="wm-card" v-for="m in store.perspective.recent_messages.slice().reverse()" :key="m.message_id">
+              <div class="wm-top">
+                <span class="wm-type">{{ m.message_type }}</span>
+                <span class="wm-tick">t{{ m.tick }}</span>
+              </div>
+              <div class="wm-content">{{ m.content }}</div>
+              <div class="wm-from" v-if="m.sender_id">from: {{ m.sender_id.slice(0, 8) }}...</div>
+            </div>
+            <div class="wp-empty" v-if="!store.perspective.recent_messages.length">
+              No messages received
+            </div>
+          </div>
+        </div>
+
+        <!-- Social Network -->
+        <div class="wp-section">
+          <div class="wp-stitle">Social Network</div>
+          <div class="wp-network">
+            <div class="wn-group" v-if="store.perspective.information_sources.length">
+              <div class="wn-label">Info Sources</div>
+              <div
+                class="wn-agent"
+                v-for="s in store.perspective.information_sources"
+                :key="s.agent_id"
+                @click="store.fetchPerspective(s.agent_id)"
+              >
+                {{ s.name }} <span class="wn-role">({{ s.role }})</span>
+              </div>
+            </div>
+            <div class="wn-group" v-if="store.perspective.social_connections.length">
+              <div class="wn-label">Connections</div>
+              <div
+                class="wn-agent"
+                v-for="c in store.perspective.social_connections"
+                :key="c.agent_id"
+                @click="store.fetchPerspective(c.agent_id)"
+              >
+                {{ flag(c.country) }} {{ c.name }} <span class="wn-role">({{ c.role }})</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Country + Macro -->
+        <div class="wp-section" v-if="store.perspective.country_data">
+          <div class="wp-stitle">{{ store.perspective.country_data.name }}</div>
+          <div class="wp-portfolio">
+            <div class="wpo-item">
+              <span class="wpo-key">GDP</span>
+              <span class="wpo-val">${{ store.perspective.country_data.gdp_usd_bn.toFixed(0) }}B</span>
+            </div>
+            <div class="wpo-item">
+              <span class="wpo-key">Inflation</span>
+              <span class="wpo-val">{{ store.perspective.country_data.inflation_pct.toFixed(1) }}%</span>
+            </div>
+            <div class="wpo-item">
+              <span class="wpo-key">Unemployment</span>
+              <span class="wpo-val">{{ store.perspective.country_data.unemployment_pct.toFixed(1) }}%</span>
+            </div>
+            <div class="wpo-item" v-if="store.perspective.country_data.sanctioned">
+              <span class="wpo-key">Sanctioned</span>
+              <span class="wpo-val sanctioned">YES</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Employment -->
+        <div class="wp-section">
+          <div class="wp-stitle">Employment</div>
+          <div class="wp-portfolio">
+            <div class="wpo-item">
+              <span class="wpo-key">Title</span>
+              <span class="wpo-val">{{ store.perspective.life.employment.job_title }}</span>
+            </div>
+            <div class="wpo-item">
+              <span class="wpo-key">Salary</span>
+              <span class="wpo-val">{{ formatMoney(store.perspective.life.employment.salary_monthly_eur) }}/mo</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading perspective -->
+    <div class="wv-perspective loading" v-if="store.perspectiveLoading">
+      <div class="wp-loading">Loading perspective...</div>
+    </div>
+
+    <!-- Status bar (top-right overlay when no perspective) -->
+    <div class="wv-status" v-if="!store.perspective">
       <div class="ws-row">
         <span class="ws-label">TICK</span>
         <span class="ws-val">{{ store.tick }}</span>
@@ -43,17 +231,25 @@
       <button class="wc-btn" @click="toggleEngine" :disabled="!store.initialized">
         {{ store.running ? 'Stop' : 'Start' }}
       </button>
+      <button
+        class="wc-btn god-toggle"
+        :class="{ active: store.godMode }"
+        @click="store.toggleGodMode()"
+        :disabled="!store.initialized"
+      >
+        {{ store.godMode ? 'God Mode' : 'Observer' }}
+      </button>
     </div>
 
-    <!-- Right sidebar: Event Feed + Intervention -->
-    <div class="wv-sidebar" :class="{ collapsed: sidebarCollapsed }">
+    <!-- Right sidebar: Event Feed + God Mode / Shocks -->
+    <div class="wv-sidebar" v-if="!store.perspective" :class="{ collapsed: sidebarCollapsed }">
       <button class="ws-toggle" @click="sidebarCollapsed = !sidebarCollapsed">
         {{ sidebarCollapsed ? '◂' : '▸' }}
       </button>
 
       <template v-if="!sidebarCollapsed">
-        <!-- Event Feed -->
-        <div class="wv-feed">
+        <!-- Event feed (always visible, shrinks when god mode active) -->
+        <div class="wv-feed" :class="{ compact: store.godMode }">
           <div class="wf-header">
             <span class="wf-title">Event Feed</span>
             <span class="wf-count">{{ store.events.length }}</span>
@@ -72,9 +268,6 @@
                 </div>
                 <div class="wf-headline">{{ ev.headline }}</div>
                 <div class="wf-desc" v-if="ev.description">{{ ev.description }}</div>
-                <div class="wf-actor" v-if="ev.actor_id">
-                  {{ ev.actor_type }}: {{ ev.actor_id }}
-                </div>
               </div>
             </TransitionGroup>
             <div class="wf-empty" v-if="store.events.length === 0">
@@ -83,42 +276,86 @@
           </div>
         </div>
 
-        <!-- Intervention Panel -->
-        <div class="wv-intervene">
-          <div class="wi-title">Agent Intervention</div>
-          <div class="wi-form">
-            <input v-model="intv.agentId" placeholder="Agent ID" class="wi-input" />
-            <input v-model="intv.action" placeholder="Action description" class="wi-input" />
-            <div class="wi-sliders">
-              <label class="wi-slider">
-                <span>USD</span>
-                <input type="range" v-model.number="intv.usdDelta" min="-1" max="1" step="0.1" />
-                <span class="wi-sv">{{ intv.usdDelta.toFixed(1) }}</span>
-              </label>
-              <label class="wi-slider">
-                <span>EUR</span>
-                <input type="range" v-model.number="intv.eurDelta" min="-1" max="1" step="0.1" />
-                <span class="wi-sv">{{ intv.eurDelta.toFixed(1) }}</span>
-              </label>
-              <label class="wi-slider">
-                <span>EQ</span>
-                <input type="range" v-model.number="intv.eqDelta" min="-1" max="1" step="0.1" />
-                <span class="wi-sv">{{ intv.eqDelta.toFixed(1) }}</span>
-              </label>
-              <label class="wi-slider">
-                <span>BTC</span>
-                <input type="range" v-model.number="intv.cryptoDelta" min="-1" max="1" step="0.1" />
-                <span class="wi-sv">{{ intv.cryptoDelta.toFixed(1) }}</span>
-              </label>
-            </div>
-            <button class="wc-btn accent" @click="submitIntervention" :disabled="!intv.agentId || !intv.action">
-              Inject
-            </button>
-            <div class="wi-result" v-if="intvResult">{{ intvResult }}</div>
+        <!-- God Mode Panel -->
+        <div class="wv-god" v-if="store.godMode">
+          <div class="wg-header">
+            <span class="wg-title">God Mode</span>
+            <span class="wg-indicator"></span>
           </div>
 
-          <!-- Quick shock buttons -->
-          <div class="wi-title" style="margin-top: 12px;">Inject Shock</div>
+          <!-- Intervention type selector -->
+          <select class="wg-select" v-model="godType">
+            <option value="">Select intervention...</option>
+            <option v-for="(schema, key) in store.interventionTypes" :key="key" :value="key">
+              {{ schema.icon }} {{ schema.label }}
+            </option>
+          </select>
+
+          <!-- Dynamic parameter inputs -->
+          <div class="wg-params" v-if="godType && store.interventionTypes[godType]">
+            <div class="wg-desc">{{ store.interventionTypes[godType].desc }}</div>
+            <div class="wg-field" v-for="(pdef, pkey) in store.interventionTypes[godType].params" :key="pkey">
+              <label class="wg-label">{{ pdef.label }}</label>
+              <select
+                v-if="pdef.type === 'select'"
+                class="wg-input"
+                v-model="godParams[pkey]"
+              >
+                <option v-for="opt in pdef.options" :key="opt" :value="opt">{{ opt }}</option>
+              </select>
+              <select
+                v-else-if="pdef.type === 'boolean'"
+                class="wg-input"
+                v-model="godParams[pkey]"
+              >
+                <option :value="true">Yes</option>
+                <option :value="false">No</option>
+              </select>
+              <input
+                v-else-if="pdef.type === 'number'"
+                type="number"
+                class="wg-input"
+                v-model.number="godParams[pkey]"
+                :min="pdef.min"
+                :max="pdef.max"
+                :placeholder="pdef.label"
+              />
+              <input
+                v-else
+                type="text"
+                class="wg-input"
+                v-model="godParams[pkey]"
+                :placeholder="pdef.label"
+              />
+            </div>
+            <button class="wc-btn god-exec" @click="executeGod" :disabled="godExecuting">
+              Execute
+            </button>
+            <div class="wg-result" v-if="godResult">{{ godResult }}</div>
+          </div>
+
+          <!-- Intervention History -->
+          <div class="wg-history" v-if="store.interventionHistory.length">
+            <div class="wg-htitle">History</div>
+            <div class="wg-hlist">
+              <div class="wg-hcard" v-for="h in store.interventionHistory.slice().reverse().slice(0, 10)" :key="h.intervention_id">
+                <div class="wg-htop">
+                  <span class="wg-htype">{{ h.intervention_type }}</span>
+                  <span class="wg-htick">t{{ h.tick }}</span>
+                </div>
+                <div class="wg-heffects">
+                  <span v-for="(val, key) in limitEffects(h.effects)" :key="key" class="wg-heff">
+                    {{ key }}: {{ typeof val === 'number' ? val.toFixed?.(1) ?? val : val }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Observer mode: just show shock buttons -->
+        <div class="wv-shocks" v-if="!store.godMode">
+          <div class="wi-title">Inject Shock</div>
           <div class="wi-shocks">
             <button class="wc-btn shock" v-for="s in shockPresets" :key="s.id" @click="fireShock(s.id)">
               {{ s.label }}
@@ -148,7 +385,6 @@ const store = useWorldStore()
 // ---------------------------------------------------------------
 // Refs
 // ---------------------------------------------------------------
-const rootEl  = ref(null)
 const graphEl = ref(null)
 const svgEl   = ref(null)
 const feedEl  = ref(null)
@@ -158,10 +394,7 @@ const sidebarCollapsed = ref(false)
 let sim = null
 let resizeObserver = null
 let resizeTimeout = null
-
-// Node/edge tracking for live pulse
 let nodeSelection = null
-let nodeDataMap   = {}
 
 // ---------------------------------------------------------------
 // Computed
@@ -180,10 +413,37 @@ const stateBadge = computed(() => {
   return 'idle'
 })
 
-const displayEvents = computed(() => {
-  // Show last 50, newest on top
-  return store.events.slice(-50).reverse()
-})
+const displayEvents = computed(() => store.events.slice(-50).reverse())
+
+// ---------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------
+function flag(iso2) {
+  if (!iso2 || iso2.length !== 2) return ''
+  return String.fromCodePoint(
+    ...iso2.toUpperCase().split('').map(c => 0x1F1E6 + c.charCodeAt(0) - 65)
+  )
+}
+
+function formatType(t) {
+  return t ? t.replace(/_/g, ' ') : ''
+}
+
+function formatBelief(key) {
+  return key.replace(/_/g, ' ')
+}
+
+function beliefColor(val) {
+  if (val > 0.7) return '#f06060'
+  if (val > 0.4) return '#f0a832'
+  return '#2dd4a0'
+}
+
+function formatMoney(val) {
+  if (val >= 1_000_000) return `€${(val / 1_000_000).toFixed(1)}M`
+  if (val >= 1_000) return `€${(val / 1_000).toFixed(1)}K`
+  return `€${val.toFixed(0)}`
+}
 
 // ---------------------------------------------------------------
 // D3 Force Graph
@@ -221,17 +481,14 @@ function renderGraph(graphData) {
   const edges = graphData.edges.map(d => ({ ...d }))
 
   const radiusScale = d3.scaleSqrt().domain([0, 50]).range([4, 24])
-
   const g = svg.append('g')
 
-  // Zoom
   svg.call(
     d3.zoom()
       .scaleExtent([0.3, 6])
       .on('zoom', (event) => g.attr('transform', event.transform))
   )
 
-  // Arrow markers
   const defs = svg.append('defs')
   ;['sanctions', 'state_sponsor'].forEach(type => {
     const style = EDGE_STYLES[type]
@@ -246,7 +503,6 @@ function renderGraph(graphData) {
       .attr('fill', style.stroke)
   })
 
-  // Glow filter for pulsing nodes
   const filter = defs.append('filter').attr('id', 'wv-glow')
   filter.append('feGaussianBlur').attr('stdDeviation', '3').attr('result', 'blur')
   filter.append('feMerge').selectAll('feMergeNode')
@@ -254,7 +510,6 @@ function renderGraph(graphData) {
     .join('feMergeNode')
     .attr('in', d => d)
 
-  // Links
   g.append('g')
     .selectAll('line')
     .data(edges)
@@ -265,7 +520,6 @@ function renderGraph(graphData) {
     .attr('stroke-dasharray', d => EDGE_STYLES[d.type]?.dash || null)
     .attr('marker-end', d => d.directed ? `url(#wv-arrow-${d.type})` : null)
 
-  // Nodes
   const node = g.append('g')
     .selectAll('circle')
     .data(nodes)
@@ -277,10 +531,7 @@ function renderGraph(graphData) {
     .style('cursor', 'grab')
 
   nodeSelection = node
-  nodeDataMap = {}
-  nodes.forEach(n => { nodeDataMap[n.id] = n })
 
-  // Labels
   const label = g.append('g')
     .selectAll('text')
     .data(nodes)
@@ -292,7 +543,6 @@ function renderGraph(graphData) {
     .attr('dy', d => radiusScale(d.size || 10) + 12)
     .style('pointer-events', 'none')
 
-  // Drag
   function dragStart(event, d) {
     if (!event.active) sim.alphaTarget(0.3).restart()
     d.fx = d.x; d.fy = d.y
@@ -304,14 +554,12 @@ function renderGraph(graphData) {
   }
   node.call(d3.drag().on('start', dragStart).on('drag', dragging).on('end', dragEnd))
 
-  // Tooltip
   node.append('title').text(d => {
     const data = d.data || {}
     if (d.type === 'country') return `${data.flag || ''} ${data.name || d.id}\nGDP: $${data.gdp_bn}B`
     return data.name || d.label
   })
 
-  // Force simulation
   const linkSel = g.selectAll('line')
   sim = d3.forceSimulation(nodes)
     .force('link', d3.forceLink(edges).id(d => d.id).distance(d => {
@@ -332,9 +580,14 @@ function renderGraph(graphData) {
     })
 }
 
-// ---------------------------------------------------------------
-// Pulse a node on event
-// ---------------------------------------------------------------
+// Highlight the agent's country node when perspective is open
+watch(() => store.perspective?.country, (country) => {
+  if (!nodeSelection) return
+  nodeSelection
+    .attr('stroke', d => d.id === country ? '#fff' : 'rgba(255,255,255,0.15)')
+    .attr('stroke-width', d => d.id === country ? 3 : 1)
+})
+
 function pulseNode(nodeId) {
   if (!nodeSelection) return
   nodeSelection
@@ -350,45 +603,48 @@ function pulseNode(nodeId) {
 }
 
 // ---------------------------------------------------------------
-// Event formatting
+// God Mode
 // ---------------------------------------------------------------
-function formatType(t) {
-  if (!t) return ''
-  return t.replace(/_/g, ' ')
-}
+const godType = ref('')
+const godParams = ref({})
+const godResult = ref('')
+const godExecuting = ref(false)
 
-// ---------------------------------------------------------------
-// Intervention
-// ---------------------------------------------------------------
-const intv = ref({
-  agentId:     '',
-  action:      '',
-  usdDelta:    0,
-  eurDelta:    0,
-  eqDelta:     0,
-  cryptoDelta: 0,
+// Reset params when type changes
+watch(godType, () => {
+  godParams.value = {}
+  godResult.value = ''
 })
-const intvResult = ref('')
 
-async function submitIntervention() {
-  const res = await store.intervene(intv.value.agentId, {
-    action:       intv.value.action,
-    usd_delta:    intv.value.usdDelta,
-    eur_delta:    intv.value.eurDelta,
-    equity_delta: intv.value.eqDelta,
-    crypto_delta: intv.value.cryptoDelta,
-  })
+async function executeGod() {
+  if (!godType.value) return
+  godExecuting.value = true
+  godResult.value = ''
+  const res = await store.executeIntervention(godType.value, godParams.value)
+  godExecuting.value = false
   if (res) {
-    intvResult.value = `Queued: ${res.agent?.name} (${res.agent?.tier})`
-    intv.value.action = ''
+    godResult.value = res.headline || 'Executed'
+    setTimeout(() => { godResult.value = '' }, 5000)
   } else {
-    intvResult.value = store.error || 'Failed'
+    godResult.value = store.error || 'Failed'
   }
-  setTimeout(() => { intvResult.value = '' }, 4000)
+}
+
+function limitEffects(effects) {
+  // Show at most 4 key effects, skip arrays/objects
+  const out = {}
+  let count = 0
+  for (const [k, v] of Object.entries(effects)) {
+    if (count >= 4) break
+    if (typeof v === 'object' && v !== null) continue
+    out[k] = v
+    count++
+  }
+  return out
 }
 
 // ---------------------------------------------------------------
-// Shock presets
+// Shocks
 // ---------------------------------------------------------------
 const shockPresets = [
   { id: 'fed_hike_75',    label: 'Fed +75bps' },
@@ -398,11 +654,7 @@ const shockPresets = [
 ]
 
 async function fireShock(id) {
-  const res = await store.injectShock(id)
-  if (res) {
-    intvResult.value = `Shock: ${res.headline}`
-    setTimeout(() => { intvResult.value = '' }, 4000)
-  }
+  await store.injectShock(id)
 }
 
 // ---------------------------------------------------------------
@@ -421,21 +673,17 @@ async function toggleEngine() {
 }
 
 // ---------------------------------------------------------------
-// Watch events for node pulses
+// Watchers
 // ---------------------------------------------------------------
 watch(() => store.events.length, async () => {
   await nextTick()
-  // Auto-scroll feed
   if (feedEl.value) feedEl.value.scrollTop = 0
-
-  // Pulse affected node
   const latest = store.events[store.events.length - 1]
   if (latest?.actor_id && latest.event_type !== 'tick_start' && latest.event_type !== 'tick_end') {
     pulseNode(latest.actor_id)
   }
 })
 
-// Watch graph data changes
 watch(() => store.worldGraph, (graph) => {
   if (graph) nextTick(() => renderGraph(graph))
 }, { deep: true })
@@ -444,14 +692,13 @@ watch(() => store.worldGraph, (graph) => {
 // Lifecycle
 // ---------------------------------------------------------------
 onMounted(async () => {
-  // Try to load existing state
   await store.fetchState()
   if (store.initialized) {
     await store.fetchWorldGraph()
+    await store.fetchRoles()
   }
   store.startSSE()
 
-  // Resize handling
   resizeObserver = new ResizeObserver(() => {
     clearTimeout(resizeTimeout)
     resizeTimeout = setTimeout(() => {
@@ -482,21 +729,293 @@ onBeforeUnmount(() => {
 }
 
 /* ── D3 graph ── */
-.wv-graph {
+.wv-graph { position: absolute; inset: 0; }
+.wv-graph svg { display: block; width: 100%; height: 100%; }
+
+/* ── Left sidebar: roles + agents ── */
+.wv-left {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 200px;
+  background: rgba(8,12,20,0.92);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid var(--border);
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 0;
+  overflow-y: auto;
+  transition: width 0.2s;
 }
-.wv-graph svg {
-  display: block;
-  width: 100%;
-  height: 100%;
+.wv-left.expanded { width: 220px; }
+.wl-header {
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0 14px 8px;
+  flex-shrink: 0;
+}
+.wl-roles { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+.wr-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s;
+}
+.wr-btn:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+.wr-btn.active { background: rgba(79,142,247,0.12); color: var(--accent); }
+.wr-icon { font-size: 14px; width: 20px; text-align: center; }
+.wr-label { flex: 1; }
+.wr-count {
+  font-size: 9px;
+  color: var(--text3);
+  background: rgba(255,255,255,0.05);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.wl-empty {
+  font-size: 10px;
+  color: var(--text3);
+  padding: 16px 14px;
+  text-align: center;
 }
 
-/* ── Status overlay (top-left) ── */
+/* Agent list within left sidebar */
+.wl-agents {
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.wl-sub {
+  font-size: 9px;
+  color: var(--text3);
+  padding: 0 14px 4px;
+  letter-spacing: 0.06em;
+}
+.wa-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.wa-btn:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+.wa-btn.active { background: rgba(45,212,160,0.12); color: var(--accent2); }
+.wa-name { flex: 1; text-align: left; }
+.wa-country { font-size: 13px; }
+.wl-back {
+  margin: 8px 14px 0;
+  font-family: inherit;
+  font-size: 10px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.wl-back:hover { color: var(--text); border-color: var(--border2); }
+
+/* ── Perspective panel (foreground) ── */
+.wv-perspective {
+  position: absolute;
+  top: 0;
+  left: 220px;
+  bottom: 0;
+  width: 380px;
+  background: rgba(8,12,20,0.94);
+  backdrop-filter: blur(14px);
+  border-right: 1px solid var(--border);
+  z-index: 11;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.wv-perspective.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wp-loading { font-size: 12px; color: var(--text3); }
+.wp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.wp-identity { display: flex; align-items: center; gap: 10px; }
+.wp-icon { font-size: 24px; }
+.wp-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.wp-role { font-size: 10px; color: var(--text2); margin-top: 2px; }
+.wp-close {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wp-close:hover { color: var(--text); border-color: var(--border2); }
+
+.wp-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wp-section { display: flex; flex-direction: column; gap: 6px; }
+.wp-stitle {
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Beliefs bars */
+.wp-beliefs { display: flex; flex-direction: column; gap: 4px; }
+.wb-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wb-key {
+  font-size: 10px;
+  color: var(--text2);
+  width: 110px;
+  flex-shrink: 0;
+  text-transform: capitalize;
+}
+.wb-bar-bg {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.wb-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+.wb-val {
+  font-size: 10px;
+  color: var(--text2);
+  width: 32px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Portfolio / stats */
+.wp-portfolio { display: flex; flex-direction: column; gap: 4px; }
+.wpo-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.wpo-key { font-size: 10px; color: var(--text2); text-transform: capitalize; }
+.wpo-val { font-size: 11px; color: var(--text); font-weight: 500; }
+.wpo-val.sanctioned { color: #f06060; }
+
+/* Decisions */
+.wp-decisions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.wd-card {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 8px;
+  background: var(--bg2);
+}
+.wd-action { font-size: 11px; color: var(--text); }
+.wd-reason { font-size: 9px; color: var(--text3); margin-top: 2px; }
+
+/* Messages */
+.wp-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.wm-card {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 8px;
+  background: var(--bg2);
+}
+.wm-top {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+.wm-type {
+  font-size: 8px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.wm-tick { font-size: 8px; color: var(--text3); }
+.wm-content { font-size: 10px; color: var(--text); line-height: 1.3; }
+.wm-from { font-size: 8px; color: var(--text3); margin-top: 2px; }
+.wp-empty { font-size: 10px; color: var(--text3); padding: 8px 0; text-align: center; }
+
+/* Social network */
+.wp-network { display: flex; flex-direction: column; gap: 8px; }
+.wn-group { display: flex; flex-direction: column; gap: 2px; }
+.wn-label { font-size: 9px; color: var(--text3); margin-bottom: 2px; }
+.wn-agent {
+  font-size: 10px;
+  color: var(--text2);
+  padding: 3px 0;
+  cursor: pointer;
+  transition: color 0.12s;
+}
+.wn-agent:hover { color: var(--accent); }
+.wn-role { color: var(--text3); font-size: 9px; }
+
+/* ── Status overlay ── */
 .wv-status {
   position: absolute;
   top: 16px;
-  left: 16px;
+  right: 360px;
   background: rgba(8,12,20,0.85);
   backdrop-filter: blur(8px);
   border: 1px solid var(--border);
@@ -508,95 +1027,47 @@ onBeforeUnmount(() => {
   z-index: 10;
   min-width: 160px;
 }
-.ws-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-.ws-label {
-  font-size: 9px;
-  color: var(--text3);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-.ws-val {
-  font-size: 12px;
-  color: var(--text);
-  font-weight: 600;
-}
+.ws-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.ws-label { font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+.ws-val { font-size: 12px; color: var(--text); font-weight: 600; }
 .ws-badge {
-  font-size: 9px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 3px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.06em;
 }
 .ws-badge.off  { background: #333; color: #666; }
 .ws-badge.idle { background: rgba(79,142,247,0.2); color: var(--accent); }
 .ws-badge.run  { background: rgba(45,212,160,0.2); color: var(--accent2); }
 .ws-badge.auto { background: rgba(240,168,50,0.2); color: var(--amber); }
 
-/* ── Controls (bottom-left) ── */
+/* ── Controls ── */
 .wv-controls {
   position: absolute;
   bottom: 16px;
-  left: 16px;
+  left: 220px;
   display: flex;
   gap: 8px;
   z-index: 10;
 }
 .wc-btn {
-  font-family: inherit;
-  font-size: 11px;
-  padding: 7px 14px;
-  border: 1px solid var(--border2);
-  border-radius: 6px;
-  background: rgba(8,12,20,0.85);
-  backdrop-filter: blur(8px);
-  color: var(--text2);
-  cursor: pointer;
-  transition: all 0.15s;
+  font-family: inherit; font-size: 11px; padding: 7px 14px;
+  border: 1px solid var(--border2); border-radius: 6px;
+  background: rgba(8,12,20,0.85); backdrop-filter: blur(8px);
+  color: var(--text2); cursor: pointer; transition: all 0.15s;
   letter-spacing: 0.02em;
 }
-.wc-btn:hover:not(:disabled) {
-  color: var(--text);
-  border-color: var(--accent);
-}
-.wc-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-.wc-btn.active {
-  border-color: var(--amber);
-  color: var(--amber);
-  background: rgba(240,168,50,0.1);
-}
-.wc-btn.accent {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.wc-btn.accent:hover:not(:disabled) {
-  background: rgba(79,142,247,0.15);
-}
+.wc-btn:hover:not(:disabled) { color: var(--text); border-color: var(--accent); }
+.wc-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.wc-btn.active { border-color: var(--amber); color: var(--amber); background: rgba(240,168,50,0.1); }
 .wc-btn.shock {
-  font-size: 10px;
-  padding: 5px 10px;
-  border-color: rgba(240,96,96,0.3);
-  color: #f06060;
+  font-size: 10px; padding: 5px 10px;
+  border-color: rgba(240,96,96,0.3); color: #f06060;
 }
-.wc-btn.shock:hover:not(:disabled) {
-  background: rgba(240,96,96,0.1);
-  border-color: #f06060;
-}
+.wc-btn.shock:hover:not(:disabled) { background: rgba(240,96,96,0.1); border-color: #f06060; }
 
-/* ── Sidebar ── */
+/* ── Right sidebar ── */
 .wv-sidebar {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; right: 0; bottom: 0;
   width: 340px;
   background: rgba(8,12,20,0.9);
   backdrop-filter: blur(12px);
@@ -609,200 +1080,68 @@ onBeforeUnmount(() => {
   overflow: hidden;
   transition: width 0.2s;
 }
-.wv-sidebar.collapsed {
-  width: 32px;
-  padding: 0;
-}
+.wv-sidebar.collapsed { width: 32px; padding: 0; }
 .ws-toggle {
-  position: absolute;
-  top: 12px;
-  left: -16px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  position: absolute; top: 12px; left: -16px;
+  width: 32px; height: 32px; border-radius: 50%;
   border: 1px solid var(--border2);
-  background: rgba(8,12,20,0.9);
-  color: var(--text3);
-  cursor: pointer;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: rgba(8,12,20,0.9); color: var(--text3);
+  cursor: pointer; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
   z-index: 11;
 }
 
 /* ── Event Feed ── */
-.wv-feed {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
+.wv-feed { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .wf-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px; flex-shrink: 0;
 }
-.wf-title {
-  font-size: 10px;
-  color: var(--text3);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
+.wf-title { font-size: 10px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; }
 .wf-count {
-  font-size: 10px;
-  color: var(--text3);
-  background: rgba(255,255,255,0.05);
-  padding: 1px 6px;
-  border-radius: 3px;
+  font-size: 10px; color: var(--text3);
+  background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 3px;
 }
 .wf-list {
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 0;
+  flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px; min-height: 0;
 }
 .wf-card {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px 10px;
-  background: var(--bg2);
-  flex-shrink: 0;
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px 10px; background: var(--bg2); flex-shrink: 0;
 }
 .wf-card.sev-warning  { border-left: 3px solid var(--amber); }
 .wf-card.sev-critical { border-left: 3px solid #f06060; }
-.wf-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-.wf-type {
-  font-size: 9px;
-  color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.wf-tick {
-  font-size: 9px;
-  color: var(--text3);
-}
-.wf-headline {
-  font-size: 11px;
-  color: var(--text);
-  line-height: 1.3;
-}
-.wf-desc {
-  font-size: 10px;
-  color: var(--text2);
-  margin-top: 2px;
-  line-height: 1.3;
-}
-.wf-actor {
-  font-size: 9px;
-  color: var(--text3);
-  margin-top: 4px;
-}
-.wf-empty {
-  font-size: 11px;
-  color: var(--text3);
-  text-align: center;
-  padding: 32px 0;
-}
+.wf-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.wf-type { font-size: 9px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; }
+.wf-tick { font-size: 9px; color: var(--text3); }
+.wf-headline { font-size: 11px; color: var(--text); line-height: 1.3; }
+.wf-desc { font-size: 10px; color: var(--text2); margin-top: 2px; line-height: 1.3; }
+.wf-empty { font-size: 11px; color: var(--text3); text-align: center; padding: 32px 0; }
 
-/* ── Intervention Panel ── */
-.wv-intervene {
+/* Shocks */
+.wv-shocks {
   flex-shrink: 0;
   border-top: 1px solid var(--border);
   padding-top: 12px;
 }
 .wi-title {
-  font-size: 10px;
-  color: var(--text3);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 8px;
+  font-size: 10px; color: var(--text3);
+  letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px;
 }
-.wi-form {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.wi-input {
-  font-family: inherit;
-  font-size: 11px;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  background: var(--bg);
-  color: var(--text);
-  outline: none;
-}
-.wi-input:focus { border-color: var(--accent); }
-.wi-input::placeholder { color: var(--text3); }
-.wi-sliders {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 8px;
-}
-.wi-slider {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 9px;
-  color: var(--text3);
-}
-.wi-slider input[type="range"] {
-  flex: 1;
-  height: 3px;
-  accent-color: var(--accent);
-}
-.wi-sv {
-  font-size: 10px;
-  color: var(--text2);
-  width: 28px;
-  text-align: right;
-}
-.wi-result {
-  font-size: 10px;
-  color: var(--accent2);
-  padding: 4px 0;
-}
-.wi-shocks {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-}
+.wi-shocks { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
 
 /* ── Loading / Error ── */
 .wv-loading {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(8,12,20,0.7);
-  font-size: 14px;
-  color: var(--text2);
-  z-index: 20;
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(8,12,20,0.7); font-size: 14px; color: var(--text2); z-index: 20;
 }
 .wv-error {
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(240,96,96,0.15);
-  border: 1px solid rgba(240,96,96,0.4);
-  color: #f06060;
-  font-size: 11px;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  z-index: 20;
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  background: rgba(240,96,96,0.15); border: 1px solid rgba(240,96,96,0.4);
+  color: #f06060; font-size: 11px; padding: 8px 16px;
+  border-radius: 6px; cursor: pointer; z-index: 20;
 }
 
 /* ── Transitions ── */
@@ -811,8 +1150,167 @@ onBeforeUnmount(() => {
 .ev-leave-active { transition: all 0.2s ease; }
 .ev-leave-to    { opacity: 0; transform: translateX(8px); }
 
-/* ── Responsive ── */
-@media (max-width: 900px) {
+/* ── God Mode toggle button ── */
+.wc-btn.god-toggle {
+  border-color: rgba(240,96,96,0.3);
+  color: var(--text2);
+}
+.wc-btn.god-toggle.active {
+  border-color: #f06060;
+  color: #f06060;
+  background: rgba(240,96,96,0.12);
+  text-shadow: 0 0 8px rgba(240,96,96,0.4);
+}
+
+/* ── Feed compact mode ── */
+.wv-feed.compact { max-height: 35%; flex: none; }
+
+/* ── God Mode Panel ── */
+.wv-god {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid rgba(240,96,96,0.2);
+  padding-top: 10px;
+  min-height: 0;
+  overflow-y: auto;
+}
+.wg-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wg-title {
+  font-size: 10px;
+  color: #f06060;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.wg-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f06060;
+  animation: god-pulse 1.5s ease-in-out infinite;
+}
+@keyframes god-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.wg-select {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 6px 8px;
+  border: 1px solid rgba(240,96,96,0.3);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+}
+.wg-select:focus { border-color: #f06060; }
+.wg-desc {
+  font-size: 10px;
+  color: var(--text3);
+  line-height: 1.3;
+  padding: 2px 0;
+}
+.wg-params {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wg-label {
+  font-size: 9px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.wg-input {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+}
+.wg-input:focus { border-color: #f06060; }
+.wg-input::placeholder { color: var(--text3); }
+.wc-btn.god-exec {
+  border-color: #f06060;
+  color: #f06060;
+  font-weight: 600;
+  margin-top: 4px;
+}
+.wc-btn.god-exec:hover:not(:disabled) {
+  background: rgba(240,96,96,0.12);
+}
+.wg-result {
+  font-size: 10px;
+  color: var(--accent2);
+  padding: 2px 0;
+}
+
+/* ── Intervention History ── */
+.wg-history {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+.wg-htitle {
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.wg-hlist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.wg-hcard {
+  border: 1px solid rgba(240,96,96,0.15);
+  border-left: 3px solid #f06060;
+  border-radius: 4px;
+  padding: 5px 8px;
+  background: var(--bg2);
+}
+.wg-htop {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+.wg-htype {
+  font-size: 9px;
+  color: #f06060;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.wg-htick { font-size: 9px; color: var(--text3); }
+.wg-heffects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.wg-heff {
+  font-size: 9px;
+  color: var(--text2);
+}
+
+@media (max-width: 1100px) {
+  .wv-perspective { width: 320px; }
   .wv-sidebar { width: 280px; }
 }
 </style>

@@ -27,6 +27,7 @@ from app.models.world_event import (
     WorldEvent, EventType, EventSeverity, HumanIntervention,
 )
 from app.services.world_factory import WorldFactory
+from app.services.agent_society import AgentSociety
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,9 @@ class WorldEngine:
         # RNG
         self._rng: random.Random = random.Random(42)
 
+        # Agent society (messaging, roles, beliefs)
+        self._society: Optional[AgentSociety] = None
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -110,9 +114,11 @@ class WorldEngine:
         self._intervention_queue = asyncio.Queue()
         self._critical_this_tick = False
 
-        if use_llm:
-            from app.services.llm_engine import LLMEngine
-            self._llm_engine = LLMEngine()
+        # Always create LLM engine (holds CAMEL personas + event queues)
+        from app.services.llm_engine import LLMEngine
+        if self._llm_engine:
+            self._llm_engine.reset_agents()
+        self._llm_engine = LLMEngine()
 
         factory = WorldFactory(seed=seed)
         self.world = factory.build(
@@ -123,6 +129,11 @@ class WorldEngine:
         # Initialize GDP history
         for iso2, country in self.world.countries.items():
             self._gdp_history[iso2] = [country.economy.gdp_usd_bn]
+
+        # Initialize agent society (roles, social network, messaging)
+        self._society = AgentSociety(seed=seed)
+        new_agents = self._society.populate(self.world.households, self.world)
+        self.world.households.extend(new_agents)
 
         return self.world
 
@@ -286,6 +297,21 @@ class WorldEngine:
             # 5. Evaluate threshold rules -> generate events and shocks
             rule_events = self._evaluate_threshold_rules()
             tick_events.extend(rule_events)
+
+            # 5b. Queue significant events for persona agents (delayed delivery)
+            if self._llm_engine and self._society:
+                significant = [
+                    e for e in tick_events
+                    if e.event_type not in (EventType.TICK_START, EventType.TICK_END, EventType.AGENT_DECISION)
+                    and e.headline
+                ]
+                for ev in significant:
+                    for agent_id, role in self._society.role_agents.items():
+                        self._llm_engine.queue_event_for_persona(
+                            agent_id, role,
+                            ev.headline, ev.description,
+                            self.world.tick,
+                        )
 
             # 6. Evaluate agents (by tier frequency)
             agent_events = await self._evaluate_agents()
@@ -845,7 +871,107 @@ class WorldEngine:
         events: list[WorldEvent] = []
         tick = self.world.tick
 
+        # Run society tick (messages, beliefs, role-typed decisions)
+        if self._society:
+            # Collect agents that are being evaluated this tick
+            society_agents = [
+                a for a in self.world.households
+                if a.agent_id in self._society.role_agents
+            ]
+            society_decisions = self._society.process_tick(
+                society_agents, self.world, tick,
+            )
+
+            # If LLM mode is on, try CAMEL persona responses for role agents
+            if self._use_llm and self._llm_engine:
+                from app.services.agent_personas import ROLE_TO_PERSONA
+                for agent_id, role in self._society.role_agents.items():
+                    if role not in ROLE_TO_PERSONA:
+                        continue
+                    agent = self._find_agent(agent_id)
+                    if not agent:
+                        continue
+                    # Collect inbox messages as strings for CAMEL
+                    life = self._society.lives.get(agent_id)
+                    inbox_strs = []
+                    if life:
+                        for m in life.inbox[-5:]:
+                            inbox_strs.append(m.content if hasattr(m, 'content') else str(m))
+                    try:
+                        camel_result = asyncio.get_event_loop().run_until_complete(
+                            self._llm_engine.react_persona(
+                                agent, role, self.world, tick, inbox_strs,
+                            )
+                        )
+                    except RuntimeError:
+                        # Already in async context — use create_task instead
+                        camel_result = None
+                    if camel_result and camel_result.get("action", "hold") != "hold":
+                        # Replace the stub decision with CAMEL's response
+                        society_decisions = [
+                            d for d in society_decisions if d["agent_id"] != agent_id
+                        ]
+                        society_decisions.append({
+                            "agent_id": agent_id,
+                            "action": camel_result.get("action", "hold"),
+                            "usd_delta": float(camel_result.get("usd_delta", 0)),
+                            "reasoning": camel_result.get("reasoning", ""),
+                            "communication": camel_result.get("communication", ""),
+                        })
+                        # Store communication as an agent message
+                        comm = camel_result.get("communication", "")
+                        if comm and self._society:
+                            from app.models.agent_message import AgentMessage, MessageType
+                            msg = AgentMessage(
+                                sender_id=agent_id,
+                                receiver_id="broadcast",
+                                content=f"[{agent.name}] {comm}",
+                                message_type=MessageType.PERSONAL,
+                                tick=tick,
+                                simulation_date=str(self.world.simulation_date),
+                            )
+                            self._society._deliver_message(msg)
+            # Apply society decisions
+            for dec in society_decisions:
+                agent = self._find_agent(dec["agent_id"])
+                if not agent:
+                    continue
+                usd_delta = dec.get("usd_delta", 0)
+                if usd_delta:
+                    agent.usd_exposure = max(0, min(1, agent.usd_exposure + usd_delta))
+                    agent.eur_exposure = max(0, min(
+                        1, 1.0 - agent.usd_exposure - agent.equity_exposure - agent.crypto_exposure
+                    ))
+                event = WorldEvent(
+                    event_type=EventType.AGENT_DECISION,
+                    severity=EventSeverity.INFO,
+                    tick=tick,
+                    simulation_date=str(self.world.simulation_date),
+                    headline=f"{agent.name}: {dec['action']}",
+                    description=dec.get("reasoning", ""),
+                    actor_type="agent",
+                    actor_id=agent.agent_id,
+                    mutations={
+                        "usd_delta": usd_delta,
+                        "usd_exposure": agent.usd_exposure,
+                        "country": agent.country,
+                        "role": str(self._society.role_agents.get(agent.agent_id, "generic")),
+                    },
+                )
+                events.append(event)
+                # Broadcast role-typed decisions (they're interesting)
+                if agent.tier != AgentTier.HOUSEHOLD or agent.agent_id in self._society.role_agents:
+                    self._broadcast(event)
+
+            # Track which agents already got evaluated by society
+            society_evaluated = {d["agent_id"] for d in society_decisions}
+        else:
+            society_evaluated = set()
+
         for agent in self.world.households:
+            # Skip agents already evaluated by society
+            if agent.agent_id in society_evaluated:
+                continue
             freq = TIER_EVAL_FREQUENCY.get(agent.tier, 14)
 
             # Override: critical event + fast information -> evaluate anyway

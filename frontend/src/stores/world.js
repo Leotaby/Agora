@@ -1,7 +1,8 @@
 /**
  * stores/world.js — Pinia store for the living world engine
  *
- * Manages: world lifecycle, SSE event streaming, auto-tick, interventions.
+ * Manages: world lifecycle, SSE event streaming, auto-tick, interventions,
+ *          agent roles, perspectives, and messaging.
  */
 import { defineStore } from 'pinia'
 import axios from 'axios'
@@ -37,6 +38,19 @@ export const useWorldStore = defineStore('world', {
 
     // SSE
     _eventSource: null,
+
+    // Agent society
+    roles:             [],     // [{role, label, icon, desc, count}]
+    selectedRole:      null,   // role string
+    roleAgents:        [],     // [{agent_id, name, country, ...}]
+    selectedAgentId:   null,   // agent_id
+    perspective:       null,   // full perspective object
+    perspectiveLoading: false,
+
+    // God mode
+    godMode:             false,
+    interventionTypes:   {},    // type_key -> schema
+    interventionHistory: [],    // [{intervention_id, type, params, effects, tick}]
 
     // UI
     loading: false,
@@ -99,8 +113,11 @@ export const useWorldStore = defineStore('world', {
         this.simulationDate = res.data.date
         this.totalAgents    = res.data.agents
         this.events = []
+        this.perspective = null
+        this.selectedAgentId = null
         await this.fetchWorldGraph()
         await this.fetchState()
+        await this.fetchRoles()
       } catch (e) {
         this.error = e.response?.data?.detail || e.message
       } finally {
@@ -116,6 +133,10 @@ export const useWorldStore = defineStore('world', {
         const res = await axios.post(`${API}/world/tick`)
         this.tick           = res.data.tick
         this.simulationDate = res.data.date
+        // Refresh perspective if viewing one
+        if (this.selectedAgentId) {
+          this.fetchPerspective(this.selectedAgentId)
+        }
       } catch (e) {
         this.error = e.response?.data?.detail || e.message
       }
@@ -178,6 +199,10 @@ export const useWorldStore = defineStore('world', {
         if (data.event_type === 'tick_end') {
           this.tick = data.tick
           if (data.simulation_date) this.simulationDate = data.simulation_date
+          // Auto-refresh perspective on tick end
+          if (this.selectedAgentId) {
+            this.fetchPerspective(this.selectedAgentId)
+          }
         }
       }
 
@@ -195,6 +220,91 @@ export const useWorldStore = defineStore('world', {
       if (this._eventSource) {
         this._eventSource.close()
         this._eventSource = null
+      }
+    },
+
+    // ---------------------------------------------------------------
+    // Agent roles and perspective
+    // ---------------------------------------------------------------
+    async fetchRoles() {
+      try {
+        const res = await axios.get(`${API}/agents/roles`)
+        this.roles = res.data.roles || []
+      } catch { /* ignore */ }
+    },
+
+    async selectRole(role) {
+      this.selectedRole = role
+      this.selectedAgentId = null
+      this.perspective = null
+      try {
+        const res = await axios.get(`${API}/agents/by_role/${role}`)
+        this.roleAgents = res.data.agents || []
+      } catch (e) {
+        this.error = e.response?.data?.detail || e.message
+        this.roleAgents = []
+      }
+    },
+
+    async fetchPerspective(agentId) {
+      this.perspectiveLoading = true
+      try {
+        const res = await axios.get(`${API}/agents/${agentId}/perspective`)
+        this.perspective = res.data
+        this.selectedAgentId = agentId
+      } catch (e) {
+        this.error = e.response?.data?.detail || e.message
+      } finally {
+        this.perspectiveLoading = false
+      }
+    },
+
+    clearPerspective() {
+      this.selectedAgentId = null
+      this.perspective = null
+      this.selectedRole = null
+      this.roleAgents = []
+    },
+
+    // ---------------------------------------------------------------
+    // God Mode
+    // ---------------------------------------------------------------
+    async fetchInterventionTypes() {
+      try {
+        const res = await axios.get(`${API}/intervene/types`)
+        this.interventionTypes = res.data.types || {}
+      } catch { /* ignore */ }
+    },
+
+    async fetchInterventionHistory() {
+      try {
+        const res = await axios.get(`${API}/intervene/history`)
+        this.interventionHistory = res.data.history || []
+      } catch { /* ignore */ }
+    },
+
+    async executeIntervention(type, params) {
+      try {
+        const res = await axios.post(`${API}/intervene`, {
+          intervention_type: type,
+          params,
+        })
+        // Refresh history
+        this.fetchInterventionHistory()
+        // Refresh state
+        this.fetchState()
+        return res.data
+      } catch (e) {
+        this.error = e.response?.data?.detail || e.message
+        return null
+      }
+    },
+
+    toggleGodMode() {
+      this.godMode = !this.godMode
+      if (this.godMode && Object.keys(this.interventionTypes).length === 0) {
+        this.fetchInterventionTypes()
+        this.fetchInterventionHistory()
       }
     },
 
