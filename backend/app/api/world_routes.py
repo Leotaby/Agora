@@ -40,6 +40,7 @@ class WorldInitRequest(BaseModel):
     seed: int = Field(default=42)
     n_households_per_country: int = Field(default=50, ge=0, le=500)
     use_llm: bool = Field(default=False)
+    warmup_ticks: int = Field(default=10, ge=0, le=100, description="Auto-run N ticks after init")
 
 
 class WorldStartRequest(BaseModel):
@@ -79,12 +80,21 @@ async def init_world(request: WorldInitRequest):
         n_households_per_country=request.n_households_per_country,
         use_llm=request.use_llm,
     )
+
+    # Run warmup ticks so agents have decisions/messages immediately
+    warmup_events = 0
+    for _ in range(request.warmup_ticks):
+        events = await engine.manual_tick()
+        warmup_events += len(events)
+
     return {
         "status": "initialized",
         "tick": world.tick,
         "date": str(world.simulation_date),
         "countries": world.num_countries,
         "agents": world.total_agents,
+        "warmup_ticks": request.warmup_ticks,
+        "warmup_events": warmup_events,
     }
 
 

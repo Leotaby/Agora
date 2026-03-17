@@ -59,6 +59,9 @@ class AgentSociety:
         # Role-typed agent roster (agent_id -> role)
         self.role_agents: dict[str, AgentRole] = {}
 
+        # Quick lookup: agent_id -> HumanTwin (role agents only)
+        self._role_agent_objects: dict[str, HumanTwin] = {}
+
     # ------------------------------------------------------------------
     # Initialization: create role-typed agents and wire social networks
     # ------------------------------------------------------------------
@@ -84,6 +87,9 @@ class AgentSociety:
 
         # 3. Wire social connections based on proximity and role
         self._wire_social_network(all_agents)
+
+        # 4. Seed demo messages so the UI feels alive on first load
+        self.seed_demo_messages(world)
 
         return new_agents
 
@@ -364,6 +370,10 @@ class AgentSociety:
                 },
             )
             self._mailboxes[a.agent_id] = []
+
+        # Store references for lookup in seed_demo_messages
+        for a in agents:
+            self._role_agent_objects[a.agent_id] = a
 
         return agents
 
@@ -1061,3 +1071,169 @@ class AgentSociety:
                 "count": counts.get(role_key, 0),
             })
         return result
+
+    # ------------------------------------------------------------------
+    # Demo message seeding
+    # ------------------------------------------------------------------
+
+    def seed_demo_messages(self, world) -> None:
+        """
+        Pre-populate 5 realistic in-character messages per persona role
+        so the perspective UI feels alive before any ticks run.
+        Also seeds 1-2 initial decisions per persona.
+        """
+        sim_date = str(world.simulation_date)
+
+        # Collect one agent_id per role for sender attribution
+        role_ids: dict[AgentRole, str] = {}
+        for aid, role in self.role_agents.items():
+            if role not in role_ids:
+                role_ids[role] = aid
+
+        # ---- ECB President ----
+        ecb_id = role_ids.get(AgentRole.ECB_PRESIDENT)
+        if ecb_id:
+            self._seed_msgs(ecb_id, sim_date, [
+                ("The Governing Council will remain data-dependent. Inflation expectations must stay anchored at 2%.", MessageType.POLICY_ANNOUNCEMENT, {"stance": "neutral", "inflation": world.macro.global_inflation_pct}),
+                ("We are monitoring wage growth in Germany and Spain closely. Second-round effects are the key risk.", MessageType.POLICY_ANNOUNCEMENT, {"stance": "hawkish"}),
+                ("Financial conditions have tightened. We stand ready to act if fragmentation risks materialize.", MessageType.POLICY_ANNOUNCEMENT, {"stance": "dovish"}),
+                ("I spoke with Minister Giorgetti — Italy's spread concerns are noted but our mandate is clear.", MessageType.PERSONAL, {}),
+                ("Philip Lane's staff projections suggest core inflation at 2.6% by Q3. We need more data.", MessageType.NEWS, {"inflation": 2.6}),
+            ])
+            self._seed_decisions(ecb_id, [
+                {"action": "maintain current rates — data-dependent stance", "reasoning": "Inflation near target, no need to signal either direction yet"},
+                {"action": "verbal intervention: 'We see risks as balanced'", "reasoning": "Markets are pricing too many cuts, need to push back gently"},
+            ])
+
+        # ---- Italian Shop Clerk ----
+        for aid, role in self.role_agents.items():
+            if role == AgentRole.SHOP_CLERK:
+                agent = self._role_agent_objects.get(aid)
+                if not agent or agent.country != "IT":
+                    continue
+                self._seed_msgs(aid, sim_date, [
+                    ("Madonna, olive oil is €8.99 now! Last year it was €5.49. How am I supposed to feed Luca?", MessageType.PERSONAL, {}),
+                    ("Signor Ferrara called — wholesale pasta up 15% next month. He says it's the wheat from Ukraine.", MessageType.NEWS, {"inflation": 15}),
+                    ("Giovanni says his electricity bill was €180 this month. Mine was €156. This is crazy.", MessageType.PERSONAL, {}),
+                    ("Maria heard at the café that the government might give a bonus at Christmas. I'll believe it when I see it.", MessageType.RUMOR, {}),
+                    ("The boss said no raises until at least September. I'm looking at the supermarket job near Piazza Garibaldi.", MessageType.PERSONAL, {}),
+                ])
+                self._seed_decisions(aid, [
+                    {"action": "switch to store-brand pasta to save €12/month", "reasoning": "Barilla is €1.89 now, Conad brand is €0.99. Family won't notice."},
+                    {"action": "hold — no changes to PosteItaliane savings", "reasoning": "Don't have enough to move, and wouldn't know where anyway"},
+                ])
+                break
+
+        # ---- Turkish Household ----
+        tr_id = role_ids.get(AgentRole.TURKISH_HOUSEHOLD)
+        if tr_id:
+            country_tr = world.countries.get("TR")
+            infl = country_tr.economy.inflation_pct if country_tr else 65
+            self._seed_msgs(tr_id, sim_date, [
+                (f"WhatsApp Aile grubu — Cousin Fatma: 'Döviz bürosu kapanmadan gidin! Dolar {infl * 0.5:.0f} TL!'", MessageType.RUMOR, {"inflation": infl}),
+                ("Mehmet says a taxi passenger — some banker — told him the lira will lose another 20% by summer.", MessageType.RUMOR, {"inflation": infl * 1.2}),
+                (f"I bought $200 from the exchange shop after school. Rate was {infl * 0.52:.0f} TL. Official rate says {infl * 0.48:.0f}. Thieves.", MessageType.TRADE, {}),
+                ("Elif needs new school books — 450 TL each! Last year they were 280 TL. How?", MessageType.PERSONAL, {}),
+                ("My mother says: 'altın al kızım' — buy gold, daughter. She remembers 2001. She might be right.", MessageType.PERSONAL, {}),
+            ])
+            self._seed_decisions(tr_id, [
+                {"action": "convert 5,000 TL salary to USD immediately on payday", "reasoning": f"Lira confidence at 15%. Every day I wait I lose purchasing power. Inflation {infl:.0f}%."},
+                {"action": "bought 1 quarter-gold coin from Grand Bazaar jeweler", "reasoning": "Gold holds value. My mother kept gold through 2001 crisis. Wearing it is savings."},
+            ])
+
+        # ---- NK State Worker ----
+        nk_id = role_ids.get(AgentRole.NK_STATE_WORKER)
+        if nk_id:
+            self._seed_msgs(nk_id, sim_date, [
+                ("Korean Central Television: 'Supreme Leader Kim Jong-un inspected the Sunchon Fertilizer Factory. Workers exceeded production quota by 23%.'", MessageType.NEWS, {"propaganda": True}),
+                ("Korean Central Television: 'The hostile imperialist forces continue their failed sanctions policy. Our self-reliant economy grows stronger.'", MessageType.NEWS, {"propaganda": True}),
+                ("Wife whispers: 'The market had no rice today. The ration was half a kilo short again.'", MessageType.PERSONAL, {}),
+                ("Brother-in-law sent 50 yuan through the border trader. I hid it in the radio. Total now: $340.", MessageType.PERSONAL, {}),
+                ("Foreman said the factory will increase shifts next month. No extra pay. Just 'revolutionary spirit'.", MessageType.PERSONAL, {}),
+            ])
+            self._seed_decisions(nk_id, [
+                {"action": "hold — keep $340 hidden in radio casing", "reasoning": "Cannot risk any transaction. Neighborhood watch leader is suspicious of everyone."},
+            ])
+
+        # ---- Hedge Fund Trader ----
+        hf_id = role_ids.get(AgentRole.HEDGE_FUND_TRADER)
+        if hf_id:
+            vix = world.macro.vix
+            oil = world.macro.oil_price_brent
+            self._seed_msgs(hf_id, sim_date, [
+                (f"[BLOOMBERG] VIX {vix:.1f} | Oil ${oil:.0f} | CFTC: EUR shorts at 3-year high — contrarian buy signal?", MessageType.TRADE, {"signal": "neutral", "vix": vix}),
+                ("Risk desk: 'James, your EUR/USD short is -$3.2M mark-to-market. PnL limit is -$5M. Heads up.'", MessageType.ORDER, {}),
+                (f"Brevan Howard note: 'We see 60% probability ECB cuts 25bps at June meeting. Term premium mispriced.'", MessageType.NEWS, {}),
+                ("Client call — Norwegian SWF rebalancing $800M into EUR this week. Front-run or fade?", MessageType.ORDER, {}),
+                (f"Personal model update: fair value EUR/USD = 1.0820 vs spot 1.0750. Short covering zone 1.0880.", MessageType.TRADE, {"signal": "risk-on"}),
+            ])
+            self._seed_decisions(hf_id, [
+                {"action": "add 50M EUR/USD short at 1.0750, stop at 1.0880", "reasoning": f"CFTC positioning crowded but macro thesis intact. ECB/Fed divergence favors USD. VaR within limits."},
+                {"action": "take profit on 30% of USD/JPY long — +$4.2M realized", "reasoning": "JPY carry stretched, BoJ rhetoric shifting. Lock in gains before vol event."},
+            ])
+
+        # ---- Soldiers ----
+        for aid, role in self.role_agents.items():
+            if role == AgentRole.SOLDIER:
+                agent = self._role_agent_objects.get(aid)
+                if not agent:
+                    continue
+                if agent.country == "UA":
+                    self._seed_msgs(aid, sim_date, [
+                        ("Quiet night on the line. Artillery was less today. Maybe they're regrouping.", MessageType.NEWS, {"conflict_level": 0.6}),
+                        ("Got a letter from Mama — she says bread is more expensive. Told her not to worry about me.", MessageType.PERSONAL, {}),
+                        ("Commander says we might rotate out next month. I hope it's true this time.", MessageType.PERSONAL, {}),
+                    ])
+                else:
+                    self._seed_msgs(aid, sim_date, [
+                        ("New conscripts arrived today. They look young. Nobody talks about how long this goes on.", MessageType.NEWS, {"conflict_level": 0.7}),
+                        ("Wife sent a photo of the kids. Prices are up in Moscow too, she says. Meat is expensive.", MessageType.PERSONAL, {}),
+                        ("Sergeant says the next offensive starts soon. Morale is low but nobody says it out loud.", MessageType.PERSONAL, {}),
+                    ])
+                self._seed_decisions(aid, [
+                    {"action": "send remaining salary home to family", "reasoning": "Family needs it more than I do. Nothing to spend it on here anyway."},
+                ])
+                break  # seed just one soldier per side
+
+        # ---- Iranian Merchants ----
+        ir_id = role_ids.get(AgentRole.IRANIAN_MERCHANT)
+        if ir_id:
+            self._seed_msgs(ir_id, sim_date, [
+                ("Reza says the Dubai hawala broker raised his commission to 8%. Still cheaper than being caught by IRGC.", MessageType.TRADE, {"sanctions_evasion": True}),
+                ("Gold in the bazaar hit a new record — 58 million rial per mithqal. People are panicking.", MessageType.RUMOR, {"inflation": 45}),
+                ("A customer paid me in Tether today. $500 USDT. I'm learning how this works.", MessageType.TRADE, {"sanctions_evasion": True}),
+                ("My brother's import business is dead. Can't get letters of credit from any European bank now.", MessageType.NEWS, {}),
+                ("Street exchange rate: 580,000 rial per dollar. Official rate is fantasy — 420,000. Who believes that?", MessageType.RUMOR, {"inflation": 50}),
+            ])
+            self._seed_decisions(ir_id, [
+                {"action": "convert 20M rial to $400 USD through hawala", "reasoning": "Rial lost 5% this week alone. Every rial saved is a rial lost."},
+                {"action": "accept crypto payment from carpet buyer in Dubai", "reasoning": "USDT is better than rial. Can convert to USD later through Kish exchange."},
+            ])
+
+    def _seed_msgs(
+        self,
+        agent_id: str,
+        sim_date: str,
+        msgs: list[tuple[str, MessageType, dict]],
+    ) -> None:
+        """Helper: inject demo messages into an agent's mailbox."""
+        for i, (content, msg_type, meta) in enumerate(msgs):
+            msg = AgentMessage(
+                sender_id=agent_id,
+                receiver_id=agent_id,
+                content=content,
+                message_type=msg_type,
+                tick=0,
+                simulation_date=sim_date,
+                metadata=meta,
+            )
+            self._mailboxes.setdefault(agent_id, []).append(msg)
+            self.message_log.append(msg)
+
+    def _seed_decisions(self, agent_id: str, decisions: list[dict]) -> None:
+        """Helper: inject demo decisions into an agent's recent_decisions."""
+        life = self.lives.get(agent_id)
+        if not life:
+            return
+        for d in decisions:
+            life.recent_decisions.append(d)

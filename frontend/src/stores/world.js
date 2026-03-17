@@ -107,6 +107,7 @@ export const useWorldStore = defineStore('world', {
           seed: config.seed ?? 42,
           n_households_per_country: config.nHouseholds ?? 50,
           use_llm: config.useLlm ?? false,
+          warmup_ticks: config.warmupTicks ?? 10,
         })
         this.initialized    = true
         this.tick           = res.data.tick
