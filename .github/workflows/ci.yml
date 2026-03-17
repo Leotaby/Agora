@@ -1,4 +1,4 @@
-name: NEXUS CI
+name: AGORA CI
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend-tests:
-    name: Backend — agent profile tests
+    name: Backend — banking core tests
     runs-on: ubuntu-latest
 
     steps:
@@ -26,17 +26,17 @@ jobs:
         working-directory: backend
         run: uv pip install --system -r requirements.txt
 
-      - name: Run agent profile test suite
+      - name: Import check — banking models
         working-directory: backend
-        run: python scripts/test_agent_profile.py
+        run: python -c "from app.models.bank import Bank, BankType, BankStatus; from app.models.interbank_network import InterbankNetwork; print('Banking models OK')"
 
-      - name: Run stub simulation (no LLM needed)
+      - name: Import check — contagion engine
         working-directory: backend
-        run: python scripts/run_macro_shock.py --hh 50 --rounds 4
+        run: python -c "from app.services.contagion_engine import ContagionEngine, BankingShock; print('Contagion engine OK')"
 
-      - name: Run action logger
+      - name: Run banking contagion simulation
         working-directory: backend
-        run: python scripts/action_logger.py --hh 50 --rounds 3
+        run: python scripts/run_banking_sim.py
 
   frontend-build:
     name: Frontend — build check
