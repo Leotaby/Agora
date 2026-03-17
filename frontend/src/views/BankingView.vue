@@ -18,10 +18,12 @@
       </span>
     </div>
 
-    <!-- Shock info (top-center overlay) -->
-    <div class="bv-shock" v-if="simData">
-      <span class="bsh-label">SCENARIO</span>
-      <span class="bsh-val">{{ simData.shock.description }}</span>
+    <!-- Story panel (top news ticker) -->
+    <div class="bv-story" v-if="simData">
+      <div class="bs-round-pip" :class="storyPipClass">{{ storyPipLabel }}</div>
+      <Transition name="story" mode="out-in">
+        <p class="bs-text" :key="selectedRound">{{ narrative }}</p>
+      </Transition>
     </div>
 
     <!-- Timeline panel (right sidebar) -->
@@ -219,6 +221,199 @@ const cet1Class = computed(() => {
   if (v < 8) return 'stress'
   return ''
 })
+
+// -------------------------------------------------------------------
+// Narrative generation
+// -------------------------------------------------------------------
+const BNAMES = {
+  DB: 'Deutsche Bank', BNP: 'BNP Paribas', UCG: 'UniCredit',
+  CBK: 'Commerzbank', BAYLB: 'BayernLB', ECB_BANK: 'the ECB',
+}
+function bn(id) { return BNAMES[id] || id }
+
+function totalExposure(edges, from, to) {
+  return edges.filter(e => e.source === from && e.target === to)
+    .reduce((s, e) => s + e.amount_eur_bn, 0)
+}
+
+const storyPipLabel = computed(() => {
+  if (selectedRound.value === -1) return 'PRE'
+  const r = selectedRoundData.value
+  if (!r) return ''
+  if (r.label === 'Initial Shock') return 'SHOCK'
+  if (r.label === 'ECB Intervention') return 'ECB'
+  return `R${r.round_num}`
+})
+
+const storyPipClass = computed(() => {
+  if (selectedRound.value === -1) return 'pip-pre'
+  const r = selectedRoundData.value
+  if (!r) return ''
+  if (r.label === 'Initial Shock') return 'pip-shock'
+  if (r.label === 'ECB Intervention') return 'pip-ecb'
+  return 'pip-contagion'
+})
+
+const narrative = computed(() => {
+  const d = simData.value
+  if (!d) return ''
+  const rn = selectedRound.value
+
+  // ── Pre-shock ──
+  if (rn === -1) {
+    const m = d.pre_shock.metrics
+    const ucg = d.pre_shock.bank_states.UCG
+    const baylb = d.pre_shock.bank_states.BAYLB
+    return `Eurozone interbank system: five banks, €${m.total_assets_eur_bn.toLocaleString()}bn in total assets. ` +
+      `UniCredit looks solid — CET1 at ${ucg.cet1_ratio_pct.toFixed(1)}%, liquidity at ${ucg.lcr_pct.toFixed(0)}%. ` +
+      `But Deutsche Bank and Commerzbank are already stressed, and BayernLB's LCR sits at a dangerous ${baylb.lcr_pct.toFixed(0)}%.`
+  }
+
+  const round = d.rounds.find(r => r.round_num === rn)
+  if (!round) return ''
+
+  // ── Initial shock ──
+  if (rn === 0) {
+    const solv = round.events.filter(e => e.channel === 'solvency')
+    const liq = round.events.filter(e => e.channel === 'liquidity')
+    const loanLoss = solv.find(e => e.description.includes('loans'))?.loss_eur_bn || 0
+    const bondLoss = solv.find(e => e.description.includes('sovereign'))?.loss_eur_bn || 0
+    const depRun = liq.find(e => e.description.includes('deposit'))?.loss_eur_bn || 0
+    const freeze = liq.find(e => e.description.includes('wholesale'))?.loss_eur_bn || 0
+    const ucg = round.bank_states.UCG
+    return `Crisis erupts. UniCredit suffers €${loanLoss.toFixed(1)}bn in loan losses and €${bondLoss.toFixed(1)}bn ` +
+      `as Italian government bonds crash 15%. Corporate depositors run — €${depRun.toFixed(0)}bn withdrawn overnight. ` +
+      `Wholesale funding markets slam shut, cutting off €${freeze.toFixed(0)}bn. ` +
+      `CET1 collapses from 11.3% to ${ucg.cet1_ratio_pct.toFixed(1)}%. CDS spreads spike to ${ucg.credit_spread_bps.toFixed(0)}bps.`
+  }
+
+  // ── ECB intervention ──
+  if (round.label === 'ECB Intervention') {
+    const elaList = round.events
+      .filter(e => e.channel === 'ecb_intervention')
+      .map(e => {
+        const amt = e.description.match(/€([\d.]+)bn/)?.[1] || '?'
+        return `€${amt}bn to ${bn(e.target_bank_id)}`
+      })
+    return `The ECB activates Emergency Liquidity Assistance: ${elaList.join(', ')}. ` +
+      `Total system losses: €${round.cumulative_loss_eur_bn.toFixed(0)}bn. ` +
+      `UniCredit's capital is wiped out. ` +
+      `All five banks survive — but all require €${round.metrics.ecb_facility_eur_bn.toFixed(0)}bn in central bank life support.`
+  }
+
+  // ── Contagion rounds ──
+  return contagionNarrative(round, rn, d)
+})
+
+function contagionNarrative(round, rn, d) {
+  const events = round.events
+  const edges = d.network.edges
+  const prevIdx = d.rounds.findIndex(r => r.round_num === rn) - 1
+  const prevStates = prevIdx >= 0 ? d.rounds[prevIdx].bank_states : d.pre_shock.bank_states
+
+  const cpEvents = events.filter(e => e.channel === 'counterparty')
+  const liqEvents = events.filter(e => e.channel === 'liquidity')
+  const fsEvents = events.filter(e => e.channel === 'fire_sale')
+  const parts = []
+
+  // -- Round 1 gets special treatment: first contagion, explain the mechanism
+  if (rn === 1) {
+    const dbExposure = totalExposure(edges, 'DB', 'UCG')
+    const bnpExposure = totalExposure(edges, 'BNP', 'UCG')
+    const dbLoss = cpEvents.filter(e => e.target_bank_id === 'DB').reduce((s, e) => s + e.loss_eur_bn, 0)
+    const bnpLoss = cpEvents.filter(e => e.target_bank_id === 'BNP').reduce((s, e) => s + e.loss_eur_bn, 0)
+    const totalLiq = liqEvents.reduce((s, e) => s + e.loss_eur_bn, 0)
+    parts.push(`Contagion hits the overnight lending market.`)
+    parts.push(
+      `Deutsche Bank, which lent €${dbExposure}bn to UniCredit, takes €${dbLoss.toFixed(1)}bn in counterparty losses. ` +
+      `BNP Paribas provisions €${bnpLoss.toFixed(1)}bn against its €${bnpExposure}bn exposure.`
+    )
+    parts.push(`Guilt-by-association drains €${totalLiq.toFixed(1)}bn in wholesale funding from connected banks.`)
+    return parts.join(' ')
+  }
+
+  // -- Round 2: second-order contagion
+  if (rn === 2) {
+    parts.push('Second-order cascade.')
+    // Find the biggest source of losses (should be BAYLB)
+    const sourceVolume = {}
+    cpEvents.forEach(e => { sourceVolume[e.source_bank_id] = (sourceVolume[e.source_bank_id] || 0) + e.loss_eur_bn })
+    const topSource = Object.entries(sourceVolume).sort((a, b) => b[1] - a[1])[0]
+    if (topSource) {
+      const srcState = round.bank_states[topSource[0]]
+      parts.push(
+        `${bn(topSource[0])} — already ${srcState?.status || 'stressed'} — becomes a source of losses itself, imposing €${topSource[1].toFixed(1)}bn on its creditors.`
+      )
+    }
+    if (fsEvents.length) {
+      parts.push('Stressed banks begin fire-selling sovereign bonds into a falling market.')
+    }
+    if (liqEvents.length) {
+      const bigDrain = liqEvents.reduce((a, b) => a.loss_eur_bn > b.loss_eur_bn ? a : b)
+      parts.push(`${bn(bigDrain.target_bank_id)} loses €${bigDrain.loss_eur_bn.toFixed(1)}bn in wholesale funding as fear spreads.`)
+    }
+    return parts.join(' ')
+  }
+
+  // -- Rounds 3-10: varied openers + data-driven body
+  const OPENERS = {
+    3:  "The bleeding continues — UniCredit's distress keeps rippling outward.",
+    4:  'Losses compound as stressed banks drag down their own creditors.',
+    5:  'Wholesale funding markets are seizing up across the eurozone.',
+    6:  'The contagion spiral deepens with each passing round.',
+    7:  'Every bank in the system is now under stress.',
+    8:  'No safe haven left in the interbank market.',
+    9:  'Nine rounds of cascading losses and no sign of stopping.',
+    10: 'The system teeters on the edge of systemic failure.',
+  }
+  parts.push(OPENERS[rn] || `Round ${rn} of contagion.`)
+
+  // Counterparty summary
+  if (cpEvents.length) {
+    const lossByTarget = {}
+    cpEvents.forEach(e => { lossByTarget[e.target_bank_id] = (lossByTarget[e.target_bank_id] || 0) + e.loss_eur_bn })
+    const sorted = Object.entries(lossByTarget).sort((a, b) => b[1] - a[1])
+    const top2 = sorted.slice(0, 2)
+    const totalCp = cpEvents.reduce((s, e) => s + e.loss_eur_bn, 0)
+    parts.push(
+      top2.map(([id, loss]) => `${bn(id)} takes €${loss.toFixed(1)}bn`).join(', ') +
+      ` in interbank losses (€${totalCp.toFixed(1)}bn this round).`
+    )
+  }
+
+  // Liquidity summary
+  if (liqEvents.length) {
+    const totalLiq = liqEvents.reduce((s, e) => s + e.loss_eur_bn, 0)
+    parts.push(`Another €${totalLiq.toFixed(1)}bn drains from wholesale funding.`)
+  }
+
+  // Fire sales
+  if (fsEvents.length) {
+    parts.push('Fire sales continue to depress sovereign bond prices.')
+  }
+
+  // Notable threshold crossings
+  for (const [id, state] of Object.entries(round.bank_states)) {
+    const prev = prevStates[id]
+    if (!prev) continue
+    if (state.status === 'critical' && prev.status !== 'critical') {
+      parts.push(`${bn(id)} enters critical territory.`)
+      break
+    }
+    if (state.cet1_ratio_pct < 4.5 && prev.cet1_ratio_pct >= 4.5) {
+      parts.push(`${bn(id)}'s CET1 drops below the critical 4.5% threshold.`)
+      break
+    }
+  }
+
+  // Cumulative milestone (sparingly)
+  const cum = round.cumulative_loss_eur_bn
+  if (rn === 6 || rn === 10) {
+    parts.push(`Cumulative losses: €${cum.toFixed(0)}bn.`)
+  }
+
+  return parts.join(' ')
+}
 
 // -------------------------------------------------------------------
 // Helpers
@@ -722,33 +917,50 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-/* ── Shock info (top-center) ── */
-.bv-shock {
+/* ── Story panel (top news ticker) ── */
+.bv-story {
   position: absolute;
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 52px;
+  left: 16px;
+  right: 356px;
+  z-index: 10;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
-  background: rgba(8,12,20,0.85);
-  backdrop-filter: blur(8px);
+  padding: 10px 14px;
+  background: rgba(8,12,20,0.88);
+  backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px 16px;
-  z-index: 10;
+  min-height: 44px;
 }
-.bsh-label {
+
+.bs-round-pip {
   font-size: 9px;
-  color: var(--text3);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 1px;
 }
-.bsh-val {
+.bs-round-pip.pip-pre       { background: rgba(255,255,255,0.07); color: var(--text3); }
+.bs-round-pip.pip-shock     { background: rgba(240,96,96,0.2); color: #f06060; }
+.bs-round-pip.pip-contagion { background: rgba(240,168,50,0.18); color: #f0a832; }
+.bs-round-pip.pip-ecb       { background: rgba(79,142,247,0.18); color: #4f8ef7; }
+
+.bs-text {
   font-size: 11px;
-  color: var(--text);
-  font-weight: 500;
+  line-height: 1.55;
+  color: var(--text2);
+  margin: 0;
 }
+
+/* Story transition */
+.story-enter-active { transition: opacity 0.3s ease; }
+.story-leave-active { transition: opacity 0.15s ease; }
+.story-enter-from,
+.story-leave-to { opacity: 0; }
 
 /* ── Timeline (right sidebar) ── */
 .bv-timeline {
@@ -1047,6 +1259,7 @@ onBeforeUnmount(() => {
 @media (max-width: 1100px) {
   .bv-graph { right: 280px; }
   .bv-timeline { width: 280px; }
+  .bv-story { right: 296px; }
   .bm-item { padding: 0 14px; }
 }
 </style>
