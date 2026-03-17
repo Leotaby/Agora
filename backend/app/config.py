@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     BACKEND_PORT: int = 5001
     FRONTEND_PORT: int = 3000
 
+    # World engine
+    TICK_INTERVAL_SECONDS: float = 1.0
+    DAYS_PER_TICK: int = 1
+    MAX_EVENT_LOG: int = 10_000
+    WORLD_ENGINE_CONCURRENCY: int = 10
+
     # Database
     DATABASE_URL: str = "sqlite:///./nexus.db"
 
