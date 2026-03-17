@@ -74,8 +74,8 @@ frontend/
 
 ## Author
 
-Hatef (Leo) Tabbakhian
-PhD candidate (target: GSEFM, Goethe University Frankfurt, 2026)
+Hatef Tabbakhian (Leo)
+  
 MSc Economics and Finance, Universita Federico II di Napoli
 
 ## License
