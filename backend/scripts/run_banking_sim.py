@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """
-run_banking_sim.py — Deposit-run shock on UniCredit, trace contagion through the network.
+run_banking_sim.py — Italian sovereign crisis, 7-bank cross-Atlantic contagion.
+
+Network: ECB, Deutsche Bank, BNP Paribas, UniCredit, Commerzbank,
+         Bayerische Landesbank, UBS, JPMorgan Chase.
 
 Scenario: Italian sovereign crisis triggers a deposit run on UniCredit.
   - Corporate depositors pull 40% of funds (BTP fears)
   - Wholesale funding market freezes 50% (repo counterparties flee)
   - Italian sovereign bonds marked down 15%
   - CDS spreads blow out +200bps
+  - JPMorgan restricts dollar repo funding to European banks
+  - UBS marks down European sovereign bond holdings
 
 We trace: which banks survive, which need ECB support, which fail.
 """
@@ -69,7 +74,7 @@ def print_bank_table(network: InterbankNetwork, label: str) -> None:
 # ── Main simulation ──────────────────────────────────────────────
 
 def main():
-    print_header("SYSTEMIC RISK SIMULATION: Italian Sovereign / UniCredit Deposit Run")
+    print_header("SYSTEMIC RISK SIMULATION: 7-Bank Cross-Atlantic Contagion")
 
     # ── Step 1: Build the network ────────────────────────────────
     print(f"\n{BOLD}Step 1: Building interbank network...{RESET}")
@@ -113,6 +118,8 @@ def main():
     print(f"    Wholesale freeze:    {shock.wholesale_funding_haircut_pct}%")
     print(f"    Sovereign haircut:   {shock.sovereign_bond_haircut_pct}%")
     print(f"    CDS spread shock:    +{shock.credit_spread_shock_bps:.0f}bps")
+    print(f"    {DIM}+ JPM restricts dollar repo to European banks{RESET}")
+    print(f"    {DIM}+ UBS marks down European sovereign bond holdings{RESET}")
 
     # ── Step 3: Run contagion ────────────────────────────────────
     print_header("Step 3: CONTAGION CASCADE")

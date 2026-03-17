@@ -143,8 +143,13 @@ class ContagionEngine:
         initial_events = self._apply_initial_shock(shock, tick)
         events.extend(initial_events)
 
+        # Phase 1b: Cross-border secondary effects
+        # JPMorgan restricts dollar repo; UBS marks down European sovereigns
+        secondary_events = self._apply_cross_border_effects(shock, tick)
+        events.extend(secondary_events)
+
         # Phase 2: Iterative contagion rounds
-        newly_stressed = {e.target_bank_id for e in initial_events if e.target_bank_id}
+        newly_stressed = {e.target_bank_id for e in events if e.target_bank_id}
         while newly_stressed and round_num < self.max_contagion_rounds:
             round_num += 1
             round_events: list[ContagionEvent] = []
@@ -329,6 +334,104 @@ class ContagionEngine:
         setattr(bank.assets, attr, current_val - loss)
         bank.absorb_loss(loss)
         return loss
+
+    # ------------------------------------------------------------------
+    # Phase 1b: Cross-border secondary effects
+    # ------------------------------------------------------------------
+
+    def _apply_cross_border_effects(
+        self, shock: BankingShock, tick: int,
+    ) -> list[ContagionEvent]:
+        """
+        Cross-Atlantic secondary effects triggered by European sovereign stress.
+
+        1. JPMorgan restricts dollar repo funding to European banks:
+           When European sovereign risk spikes, JPM's risk desk cuts secured
+           lending lines to all European counterparties (guilt-by-association).
+           European banks that depend on dollar repo lose funding immediately.
+
+        2. UBS marks down European sovereign bond holdings:
+           Swiss bank holds European government bonds; sovereign repricing
+           in Italy triggers mark-to-market losses across the portfolio
+           (not just Italian BTPs but a general risk-off on European debt).
+        """
+        events: list[ContagionEvent] = []
+
+        # Only trigger on sovereign-related shocks
+        is_sovereign_shock = (
+            shock.sovereign_bond_haircut_pct > 0
+            or shock.affected_asset == "sovereign_bonds"
+        )
+        if not is_sovereign_shock:
+            return events
+
+        jpm = self.banks.get("JPM")
+        ubs = self.banks.get("UBS")
+
+        # 1. JPMorgan restricts dollar repo to European banks
+        if jpm:
+            # Restriction severity scales with sovereign shock magnitude
+            restriction_pct = min(60.0, shock.sovereign_bond_haircut_pct * 4)
+
+            for exp in self.interbank_exposures:
+                if exp.lender_id != "JPM":
+                    continue
+                if not exp.is_secured:
+                    continue  # only dollar repo (secured) lines
+
+                borrower = self.banks.get(exp.borrower_id)
+                if not borrower or borrower.country == "US":
+                    continue  # only restrict European borrowers
+
+                # Reduce the repo line
+                reduction = exp.amount_eur_bn * restriction_pct / 100
+                exp.amount_eur_bn -= reduction
+
+                # Borrower loses dollar funding → drains reserves
+                borrower.liabilities.wholesale_funding_eur_bn -= reduction
+                borrower.assets.cb_reserves_eur_bn = max(
+                    0, borrower.assets.cb_reserves_eur_bn - reduction,
+                )
+                self._update_funding_stress(borrower)
+                borrower.update_liquidity_metrics()
+                borrower.update_status()
+
+                events.append(ContagionEvent(
+                    tick=tick, round_num=0, channel="liquidity",
+                    source_bank_id="JPM", target_bank_id=borrower.bank_id,
+                    loss_eur_bn=reduction,
+                    description=(
+                        f"JPM restricts dollar repo to {borrower.short_name}: "
+                        f"-{restriction_pct:.0f}% → €{reduction:.1f}bn withdrawn"
+                    ),
+                ))
+
+        # 2. UBS marks down European sovereign bond holdings
+        if ubs:
+            # Haircut proportional to shock but smaller (guilt-by-association)
+            ubs_haircut_pct = shock.sovereign_bond_haircut_pct * 0.33
+            loss = ubs.assets.sovereign_bonds_eur_bn * ubs_haircut_pct / 100
+            if loss > 0.1:
+                ubs.assets.sovereign_bonds_eur_bn -= loss
+                ubs.absorb_loss(loss)
+                # Some spread contagion to UBS
+                spread_hit = shock.credit_spread_shock_bps * 0.25
+                ubs.credit_spread_bps += spread_hit
+                ubs.update_liquidity_metrics()
+                ubs.update_status()
+
+                events.append(ContagionEvent(
+                    tick=tick, round_num=0, channel="solvency",
+                    source_bank_id="market", target_bank_id="UBS",
+                    loss_eur_bn=loss,
+                    description=(
+                        f"UBS marks down European sovereign bonds "
+                        f"{ubs_haircut_pct:.1f}% (guilt-by-association) "
+                        f"→ loss €{loss:.1f}bn, CDS +{spread_hit:.0f}bps"
+                    ),
+                ))
+
+        return events
 
     # ------------------------------------------------------------------
     # Phase 2: Contagion channels

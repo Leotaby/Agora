@@ -4,8 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="NEXUS = HumanTwin",
-        description="A Living Synthetic Economy of Human Agents, Predicting Markets from Households to Central Banks",
+        title="AGORA — Banking Stability Simulator",
+        description="Agent-based banking contagion through interbank networks",
         version="0.1.0",
     )
 
@@ -17,11 +17,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    from app.api import router, world_router, agent_router, intervention_router, banking_router
+    from app.api import router, banking_router
     app.include_router(router, prefix="/api")
-    app.include_router(world_router, prefix="/api")
-    app.include_router(agent_router, prefix="/api")
-    app.include_router(intervention_router, prefix="/api")
     app.include_router(banking_router, prefix="/api")
 
     return app

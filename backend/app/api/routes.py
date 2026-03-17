@@ -71,19 +71,18 @@ class SimulationRequest(BaseModel):
 
 @router.get("/health")
 def health_check():
-    return {"status": "ok", "project": "NEXUS", "version": "0.1.0"}
+    return {"status": "ok", "project": "AGORA", "version": "0.1.0"}
 
 
-@router.get("/world/graph")
-def get_world_graph():
-    """Return the world entity graph for D3 visualization."""
+@router.get("/banking/network")
+def get_banking_network():
+    """Return the interbank network graph for D3 visualization."""
     global _cached_world_graph
     if _cached_world_graph is None:
-        from app.services.world_factory import WorldFactory
-        from app.utils.world_graph import world_to_graph
-        factory = WorldFactory(seed=42)
-        world = factory.build(n_households_per_major_country=0, verbose=False)
-        _cached_world_graph = world_to_graph(world)
+        from app.services.contagion_engine import ContagionEngine
+        engine = ContagionEngine(seed=42)
+        engine.initialize()
+        _cached_world_graph = engine.get_network_graph()
     return _cached_world_graph
 
 

@@ -7,12 +7,14 @@ A bank is a leveraged balance sheet with maturity mismatch:
   - Capital: thin equity buffer absorbing losses (CET1 ratio, leverage ratio)
   - Liquidity: LCR/NSFR buffers determining survival horizon under stress
 
-Five preset banks form an interbank network:
+Seven preset banks form a cross-Atlantic interbank network:
   ECB (central bank, lender of last resort)
   Deutsche Bank (G-SIB, massive derivatives book)
   BNP Paribas (G-SIB, diversified eurozone)
   UniCredit (Italian champion, sovereign exposure)
   Bayerische Landesbank (small, concentrated, fragile)
+  UBS (G-SIB, major FX/rates dealer, wholesale-funded)
+  JPMorgan Chase (G-SIB, primary dealer, dollar funding dominant)
 
 The interbank network tracks overnight lending between banks.
 Contagion propagates through this network when one bank fails to
@@ -797,6 +799,112 @@ def build_bayerische_landesbank() -> Bank:
     )
 
 
+def build_ubs() -> Bank:
+    """UBS Group — G-SIB, major FX/rates dealer, wholesale-funded, large derivatives book."""
+    return Bank(
+        bank_id="UBS",
+        name="UBS Group AG",
+        short_name="UBS",
+        bank_type=BankType.GSIB,
+        country="CH",
+        is_gsib=True,
+        gsib_surcharge_pct=1.5,
+        srep_requirement_pct=10.0,
+        total_buffer_requirement_pct=13.0,
+        assets=AssetBook(
+            loans_eur_bn=320.0,
+            mortgages_eur_bn=180.0,               # Swiss mortgage book
+            sovereign_bonds_eur_bn=80.0,           # European sovereign exposure
+            corporate_securities_eur_bn=150.0,
+            interbank_lending_eur_bn=70.0,
+            cb_reserves_eur_bn=250.0,
+            derivatives_mtm_eur_bn=20.0,           # large derivatives book
+            trading_book_eur_bn=480.0,
+        ),
+        liabilities=LiabilityBook(
+            retail_deposits_eur_bn=280.0,
+            corporate_deposits_eur_bn=250.0,
+            wholesale_funding_eur_bn=350.0,        # wholesale funding dependent
+            interbank_borrowing_eur_bn=50.0,
+            bonds_issued_eur_bn=320.0,
+            subordinated_debt_eur_bn=20.0,
+            cb_borrowing_eur_bn=110.0,
+        ),
+        capital=CapitalPosition(
+            cet1_capital_eur_bn=143.0,             # CET1/RWA ≈ 14.9%
+            additional_tier1_eur_bn=15.0,
+            tier2_capital_eur_bn=12.0,
+        ),
+        liquidity=LiquidityPosition(
+            lcr_pct=158.0,
+            nsfr_pct=118.0,
+            collateral_pool_eur_bn=140.0,
+            cash_eur_bn=25.0,
+            survival_horizon_days=50,
+            encumbrance_ratio=0.25,
+        ),
+        rating="A+",
+        credit_spread_bps=55.0,
+        npl_ratio_pct=0.8,
+        net_interest_margin_pct=1.40,
+        roe_pct=15.0,
+        cost_income_ratio_pct=70.0,
+    )
+
+
+def build_jpmorgan() -> Bank:
+    """JPMorgan Chase — largest US bank, primary dealer, dominant in dollar funding markets."""
+    return Bank(
+        bank_id="JPM",
+        name="JPMorgan Chase & Co.",
+        short_name="JPM",
+        bank_type=BankType.GSIB,
+        country="US",
+        is_gsib=True,
+        gsib_surcharge_pct=2.5,
+        srep_requirement_pct=11.0,
+        total_buffer_requirement_pct=14.5,
+        assets=AssetBook(
+            loans_eur_bn=950.0,
+            mortgages_eur_bn=350.0,
+            sovereign_bonds_eur_bn=550.0,          # large treasury portfolio (primary dealer)
+            corporate_securities_eur_bn=200.0,
+            interbank_lending_eur_bn=180.0,         # dominant in dollar repo market
+            cb_reserves_eur_bn=600.0,               # massive Fed reserves
+            derivatives_mtm_eur_bn=20.0,
+            trading_book_eur_bn=700.0,
+        ),
+        liabilities=LiabilityBook(
+            retail_deposits_eur_bn=1000.0,
+            corporate_deposits_eur_bn=700.0,
+            wholesale_funding_eur_bn=600.0,
+            interbank_borrowing_eur_bn=30.0,        # net lender, minimal borrowing
+            bonds_issued_eur_bn=750.0,
+            subordinated_debt_eur_bn=35.0,
+            cb_borrowing_eur_bn=115.0,
+        ),
+        capital=CapitalPosition(
+            cet1_capital_eur_bn=273.0,              # CET1/RWA ≈ 15.3%
+            additional_tier1_eur_bn=25.0,
+            tier2_capital_eur_bn=22.0,
+        ),
+        liquidity=LiquidityPosition(
+            lcr_pct=110.0,
+            nsfr_pct=112.0,
+            collateral_pool_eur_bn=350.0,
+            cash_eur_bn=80.0,
+            survival_horizon_days=60,
+            encumbrance_ratio=0.20,
+        ),
+        rating="A+",
+        credit_spread_bps=45.0,
+        npl_ratio_pct=0.6,
+        net_interest_margin_pct=2.10,
+        roe_pct=16.0,
+        cost_income_ratio_pct=55.0,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Registry and network builder
 # ---------------------------------------------------------------------------
@@ -808,6 +916,8 @@ PRESET_BANKS: dict[str, callable] = {
     "UCG":      build_unicredit,
     "CBK":      build_commerzbank,
     "BAYLB":    build_bayerische_landesbank,
+    "UBS":      build_ubs,
+    "JPM":      build_jpmorgan,
 }
 
 
@@ -818,13 +928,17 @@ def build_all_banks() -> dict[str, Bank]:
 
 def wire_interbank_network(banks: dict[str, Bank]) -> list[InterbankExposure]:
     """
-    Create the overnight interbank lending network.
+    Create the interbank lending network (overnight + term).
 
-    Structure reflects real eurozone money market:
-    - G-SIBs lend to each other and to smaller banks
+    Structure reflects real money market topology:
+    - European G-SIBs lend to each other and to smaller banks (EUR unsecured)
     - Landesbanken borrow from G-SIBs (net borrowers)
+    - UBS bridges EUR and CHF markets, bilateral with DB and BNP
+    - JPMorgan provides dollar repo funding to European banks (secured)
+      When JPM restricts dollar lines, European banks feel it immediately
     - ECB provides standing facility (modeled separately, not here)
-    - Rates based on ECB deposit facility + credit spread
+    - EUR rates based on ECB deposit facility + credit spread (~385-410bps)
+    - USD repo rates based on Fed funds + spread (~530-560bps)
     """
     exposures: list[InterbankExposure] = []
 
@@ -834,11 +948,14 @@ def wire_interbank_network(banks: dict[str, Bank]) -> list[InterbankExposure]:
     ucg = banks.get("UCG")
     cbk = banks.get("CBK")
     baylb = banks.get("BAYLB")
+    ubs = banks.get("UBS")
+    jpm = banks.get("JPM")
 
     if not all([db, bnp, ucg, baylb]):
         return exposures
 
-    # --- G-SIB to G-SIB (large, overnight, unsecured) ---
+    # === EUROZONE CORE: G-SIB to G-SIB (overnight, unsecured) ===
+
     # DB <-> BNP bilateral
     exposures.append(InterbankExposure(
         lender_id="DB", borrower_id="BNP",
@@ -869,9 +986,8 @@ def wire_interbank_network(banks: dict[str, Bank]) -> list[InterbankExposure]:
         amount_eur_bn=4.0, maturity_days=1, rate_bps=390,
     ))
 
-    # --- Commerzbank: mid-tier, borrows from G-SIBs, lends small amounts ---
+    # === COMMERZBANK: mid-tier, borrows from G-SIBs ===
     if cbk:
-        # DB <-> CBK
         exposures.append(InterbankExposure(
             lender_id="DB", borrower_id="CBK",
             amount_eur_bn=6.0, maturity_days=1, rate_bps=393,
@@ -880,12 +996,10 @@ def wire_interbank_network(banks: dict[str, Bank]) -> list[InterbankExposure]:
             lender_id="CBK", borrower_id="DB",
             amount_eur_bn=3.0, maturity_days=1, rate_bps=388,
         ))
-        # BNP -> CBK
         exposures.append(InterbankExposure(
             lender_id="BNP", borrower_id="CBK",
             amount_eur_bn=4.0, maturity_days=1, rate_bps=396,
         ))
-        # CBK <-> UCG
         exposures.append(InterbankExposure(
             lender_id="CBK", borrower_id="UCG",
             amount_eur_bn=3.0, maturity_days=1, rate_bps=402,
@@ -894,13 +1008,12 @@ def wire_interbank_network(banks: dict[str, Bank]) -> list[InterbankExposure]:
             lender_id="UCG", borrower_id="CBK",
             amount_eur_bn=2.0, maturity_days=1, rate_bps=400,
         ))
-        # CBK -> BAYLB (German domestic)
         exposures.append(InterbankExposure(
             lender_id="CBK", borrower_id="BAYLB",
             amount_eur_bn=5.0, maturity_days=1, rate_bps=395,
         ))
 
-    # --- G-SIBs lend to Landesbank (net borrower) ---
+    # === LANDESBANK: peripheral net borrower ===
     exposures.append(InterbankExposure(
         lender_id="DB", borrower_id="BAYLB",
         amount_eur_bn=10.0, maturity_days=1, rate_bps=392,
@@ -913,15 +1026,91 @@ def wire_interbank_network(banks: dict[str, Bank]) -> list[InterbankExposure]:
         lender_id="UCG", borrower_id="BAYLB",
         amount_eur_bn=4.0, maturity_days=1, rate_bps=398,
     ))
-
-    # --- Landesbank small reverse (some collateralized) ---
     exposures.append(InterbankExposure(
         lender_id="BAYLB", borrower_id="DB",
         amount_eur_bn=2.0, maturity_days=1, rate_bps=388,
         is_secured=True, collateral_type="covered_bonds",
     ))
 
-    # --- 1-week term lending (less liquid) ---
+    # === UBS: Swiss G-SIB bridging EUR/CHF markets ===
+    if ubs:
+        # UBS <-> DB (G-SIB bilateral)
+        exposures.append(InterbankExposure(
+            lender_id="UBS", borrower_id="DB",
+            amount_eur_bn=6.0, maturity_days=1, rate_bps=388,
+        ))
+        exposures.append(InterbankExposure(
+            lender_id="DB", borrower_id="UBS",
+            amount_eur_bn=4.0, maturity_days=1, rate_bps=392,
+        ))
+        # UBS <-> BNP
+        exposures.append(InterbankExposure(
+            lender_id="UBS", borrower_id="BNP",
+            amount_eur_bn=5.0, maturity_days=1, rate_bps=386,
+        ))
+        exposures.append(InterbankExposure(
+            lender_id="BNP", borrower_id="UBS",
+            amount_eur_bn=3.0, maturity_days=1, rate_bps=390,
+        ))
+        # UBS -> UCG (smaller, 1-week term)
+        exposures.append(InterbankExposure(
+            lender_id="UBS", borrower_id="UCG",
+            amount_eur_bn=3.0, maturity_days=7, rate_bps=410,
+        ))
+
+    # === JPMORGAN: cross-Atlantic dollar repo funding ===
+    # JPM is the dominant dollar liquidity provider to European banks.
+    # All JPM->Europe lines are secured (dollar repo against sovereign collateral).
+    # USD rates are ~150bps above EUR rates (Fed funds vs ECB deposit facility).
+    if jpm:
+        # Overnight dollar repo lines
+        exposures.append(InterbankExposure(
+            lender_id="JPM", borrower_id="DB",
+            amount_eur_bn=12.0, maturity_days=1, rate_bps=540,
+            is_secured=True, collateral_type="sovereign_bonds",
+        ))
+        exposures.append(InterbankExposure(
+            lender_id="JPM", borrower_id="BNP",
+            amount_eur_bn=10.0, maturity_days=1, rate_bps=535,
+            is_secured=True, collateral_type="sovereign_bonds",
+        ))
+        exposures.append(InterbankExposure(
+            lender_id="JPM", borrower_id="UCG",
+            amount_eur_bn=5.0, maturity_days=1, rate_bps=560,
+            is_secured=True, collateral_type="sovereign_bonds",
+        ))
+        if ubs:
+            exposures.append(InterbankExposure(
+                lender_id="JPM", borrower_id="UBS",
+                amount_eur_bn=15.0, maturity_days=1, rate_bps=530,
+                is_secured=True, collateral_type="sovereign_bonds",
+            ))
+            # UBS -> JPM (reverse repo, smaller)
+            exposures.append(InterbankExposure(
+                lender_id="UBS", borrower_id="JPM",
+                amount_eur_bn=4.0, maturity_days=1, rate_bps=520,
+                is_secured=True, collateral_type="covered_bonds",
+            ))
+
+        # 1-week term dollar repo
+        exposures.append(InterbankExposure(
+            lender_id="JPM", borrower_id="DB",
+            amount_eur_bn=8.0, maturity_days=7, rate_bps=550,
+            is_secured=True, collateral_type="sovereign_bonds",
+        ))
+        exposures.append(InterbankExposure(
+            lender_id="JPM", borrower_id="BNP",
+            amount_eur_bn=6.0, maturity_days=7, rate_bps=545,
+            is_secured=True, collateral_type="sovereign_bonds",
+        ))
+        if ubs:
+            exposures.append(InterbankExposure(
+                lender_id="JPM", borrower_id="UBS",
+                amount_eur_bn=7.0, maturity_days=7, rate_bps=545,
+                is_secured=True, collateral_type="sovereign_bonds",
+            ))
+
+    # === EUR term lending (1-week, less liquid) ===
     exposures.append(InterbankExposure(
         lender_id="BNP", borrower_id="DB",
         amount_eur_bn=4.0, maturity_days=7, rate_bps=400,

@@ -1,109 +1,83 @@
 # AGORA
 
-**Agent-Based Banking Stability Simulator**
+**Agent-based contagion simulation in European interbank networks**
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Vue 3](https://img.shields.io/badge/Vue-3.4-4FC08D?style=flat-square&logo=vuedotjs&logoColor=white)](https://vuejs.org)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-purple?style=flat-square)](LICENSE)
-[![arXiv](https://img.shields.io/badge/arXiv-forthcoming-b31b1b?style=flat-square)](https://arxiv.org)
 
 ---
 
-## 1. Research question
+AGORA models how a localized banking shock propagates through a cross-Atlantic interbank network to produce systemic crisis. Seven banks are represented as fully specified balance sheets (assets, liabilities, capital, liquidity buffers) connected by directed overnight and term lending relationships. Contagion transmits through five channels until either equilibrium or central bank intervention. The project grew out of MSc thesis work on Eurozone bank stability at Federico II di Napoli and is being developed toward a PhD application at GSEFM Frankfurt.
 
-How does a localized banking shock, a sovereign debt write-down, a sudden funding freeze, a fire-sale spiral, cascade through the interbank network to produce systemic collapse? AGORA simulates the transmission of financial contagion through an agent-based model of interconnected bank balance sheets, calibrated to the European banking system.
+**Scientific question.** Under what conditions does the failure of a single nationally important bank cascade into a system-wide crisis requiring central bank intervention, and how do cross-border dollar funding dependencies amplify European contagion?
 
-The simulator models five contagion channels:
+## Key result
 
-1. **Solvency channel** - Asset write-downs erode CET1 capital, triggering forced deleveraging
-2. **Liquidity channel** - Wholesale funding freezes propagate through the network
-3. **Counterparty channel** - Interbank exposure losses cascade from defaulting banks to creditors
-4. **Fire sale channel** - Forced asset sales depress prices, triggering mark-to-market losses system-wide
-5. **Confidence channel** - Credit spreads widen, funding costs spike, marginal banks become unviable
+Italian sovereign crisis scenario: 15% BTP haircut, 40% corporate deposit run, 50% wholesale funding freeze on UniCredit, with JPMorgan restricting dollar repo to all European counterparties and UBS marking down European sovereign holdings.
 
-## 2. Bank network
+| Bank | Country | Assets (bn EUR) | Pre-shock CET1 | Pre-shock LCR | Post-shock outcome |
+|------|---------|-----------------|----------------|---------------|--------------------|
+| JPMorgan Chase | US | 3,550 | 15.3% | 188% | Survived unaided |
+| BNP Paribas | FR | 1,698 | 9.0% | 103% | ECB support, 80bn ELA |
+| UBS | CH | 1,550 | 14.9% | 100% | Survived unaided |
+| Deutsche Bank | DE | 1,117 | 7.3% | 87% | ECB support, 75bn ELA |
+| UniCredit | IT | 884 | 11.3% | 147% | Capital wiped to 0% CET1 |
+| Commerzbank | DE | 501 | 8.3% | 92% | ECB support, 61bn ELA |
+| BayernLB | DE | 234 | 6.6% | 54% | ECB support, 31bn ELA |
 
-Five preset banks form a core-periphery interbank network:
+Total system losses: 520bn EUR across 264 contagion events over 10 rounds. Five of seven banks required emergency liquidity assistance. The dollar funding channel (JPMorgan restricting secured repo to European banks) amplified the crisis by draining 38bn EUR from European bank reserves in the initial shock alone.
 
-| Bank | Type | Country | Role |
-|------|------|---------|------|
-| ECB | Central bank | EU | Lender of last resort (ELA, TLTRO) |
-| Deutsche Bank | G-SIB | DE | Dense core, massive derivatives book |
-| BNP Paribas | G-SIB | FR | Diversified eurozone exposure |
-| UniCredit | National champion | IT | Italian sovereign concentration |
-| Bayerische Landesbank | Landesbank | DE | Small, concentrated, fragile |
+## Contagion channels
 
-Each bank is a fully specified balance sheet: assets (loans, securities, interbank lending, CB reserves), liabilities (deposits, wholesale funding, interbank borrowing, bonds), capital (CET1 ratio, leverage ratio), and liquidity buffers (LCR, NSFR).
+1. **Counterparty losses.** Banks that lent to stressed or failed banks take direct write-downs on interbank exposure, proportional to the borrower's probability of default.
+2. **Liquidity withdrawal.** Wholesale funding markets freeze for banks connected to stressed counterparties. Guilt-by-association causes repo and commercial paper markets to close.
+3. **Fire sales.** Stressed banks dump sovereign bonds to rebuild LCR buffers. Forced selling depresses prices, causing mark-to-market losses across all banks holding the same assets.
+4. **Confidence contagion.** CDS spreads from stressed banks infect connected neighbors. Wider spreads raise funding costs and push marginal banks toward insolvency.
+5. **Dollar funding freeze.** JPMorgan restricts secured dollar repo lines to all European borrowers when sovereign risk spikes. European banks that depend on dollar funding lose reserves immediately.
 
-## 3. Architecture
-
-```
-agora/
-|-- backend/
-|   |-- app/
-|   |   |-- models/
-|   |   |   |-- bank.py                 # Bank balance sheets, funding stress, regulatory ratios
-|   |   |   |-- interbank_network.py    # Directed weighted interbank lending graph
-|   |   |   |-- agent.py               # HumanTwin agent dataclass
-|   |   |   |-- shock.py               # MacroShock definitions
-|   |   |   |-- simulation.py          # Simulation state, round results
-|   |   |-- services/
-|   |   |   |-- contagion_engine.py     # Five-channel contagion propagation
-|   |   |   |-- llm_engine.py          # LLM calls per agent
-|   |   |   |-- simulation_runner.py   # Round orchestration
-|   |   |   |-- agent_factory.py       # Agent population factory
-|   |   |-- api/
-|   |   |   |-- banking_routes.py      # Banking contagion simulation API
-|   |   |   |-- routes.py             # Core FastAPI endpoints
-|   |-- run.py                         # Uvicorn entry point
-|-- frontend/
-|   |-- src/
-|   |   |-- views/
-|   |   |   |-- BankingView.vue        # D3 network graph, contagion timeline, narrative panel
-|-- docker-compose.yml
-|-- Dockerfile
-```
-
-## 4. Quick start
-
-Requires Python >= 3.11 and [uv](https://github.com/astral-sh/uv).
+## Quick start
 
 ```bash
-# Install dependencies
 cd backend && uv sync
-
-# Run the Italian sovereign crisis scenario
-uv run python -c "from app.services.contagion_engine import ContagionEngine, BankingShock; e = ContagionEngine.build(); e.apply_shock(BankingShock.ITALIAN_SOVEREIGN_CRISIS); e.run_contagion()"
-
-# Start the API server
+python scripts/run_banking_sim.py
 uv run python run.py
 ```
 
-## 5. Scenario: Italian sovereign crisis
+## Architecture
 
-The default scenario simulates a 30% write-down on Italian government bonds:
+```
+backend/
+  app/
+    models/
+      bank.py                 # Balance sheets, capital, liquidity, 7 preset banks
+      interbank_network.py    # Directed weighted lending graph, network queries
+      shock.py                # Macro shock definitions
+    services/
+      contagion_engine.py     # Five-channel contagion propagation + ECB intervention
+    api/
+      banking_routes.py       # Simulation API (per-round snapshots for frontend replay)
+      routes.py               # Health check, network graph endpoint
+frontend/
+  src/views/
+    BankingView.vue           # D3 force-directed network graph, contagion timeline
+```
 
-1. UniCredit takes an immediate solvency hit from sovereign exposure
-2. Interbank counterparties (Deutsche Bank, BNP) mark down UniCredit lending
-3. Wholesale funding freezes as confidence drops
-4. Fire sales of liquid assets depress market prices
-5. ECB intervenes as lender of last resort (ELA facility)
+## Target publications
 
-## 6. Target publications
+| # | Working title | Target journal |
+|---|--------------|----------------|
+| P1 | Systemic risk transmission in heterogeneous banking networks: an agent-based approach | Journal of Financial Stability |
+| P2 | Cross-border dollar funding and European contagion amplification | Journal of Money, Credit and Banking |
+| P3 | Central bank intervention thresholds in simulated banking crises | Journal of Banking and Finance |
 
-| # | Working title | Target journal | Status |
-|---|--------------|---------------|--------|
-| P1 | Systemic risk transmission in a heterogeneous banking network: an agent-based approach | Journal of Financial Stability | Framework paper |
-| P2 | Contagion channels and central bank intervention: lessons from a simulated Italian sovereign crisis | Journal of Money, Credit and Banking | Core contribution |
+## Author
 
-## 7. Author
-
-Hatef Tabbakhian (Leo)
-
-  
+Hatef (Leo) Tabbakhian
+PhD candidate (target: GSEFM, Goethe University Frankfurt, 2026)
 MSc Economics and Finance, Universita Federico II di Napoli
 
 ## License
 
-AGPL-3.0. Derivative works must be open-sourced.
+AGPL-3.0
