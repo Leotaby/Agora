@@ -9,6 +9,10 @@
 
 ---
 
+<p align="center">
+  <img src="docs/screenshot.svg" alt="AGORA simulation output" width="800">
+</p>
+
 AGORA models how a localized banking shock propagates through a cross-Atlantic interbank network to produce systemic crisis. Seven banks are represented as fully specified balance sheets (assets, liabilities, capital, liquidity buffers) connected by directed overnight and term lending relationships. Contagion transmits through five channels until either equilibrium or central bank intervention. The project grew out of MSc thesis work on Eurozone bank stability at Federico II di Napoli and is being developed toward a PhD application at GSEFM Frankfurt.
 
 **Scientific question.** Under what conditions does the failure of a single nationally important bank cascade into a system-wide crisis requiring central bank intervention, and how do cross-border dollar funding dependencies amplify European contagion?
@@ -36,6 +40,18 @@ Total system losses: 520bn EUR across 264 contagion events over 10 rounds. Five 
 3. **Fire sales.** Stressed banks dump sovereign bonds to rebuild LCR buffers. Forced selling depresses prices, causing mark-to-market losses across all banks holding the same assets.
 4. **Confidence contagion.** CDS spreads from stressed banks infect connected neighbors. Wider spreads raise funding costs and push marginal banks toward insolvency.
 5. **Dollar funding freeze.** JPMorgan restricts secured dollar repo lines to all European borrowers when sovereign risk spikes. European banks that depend on dollar funding lose reserves immediately.
+
+## Simulation output
+
+The default scenario is an Italian sovereign crisis. UniCredit takes a 15% BTP haircut, loses 40% of corporate deposits and 50% of wholesale funding. JPMorgan restricts dollar repo to all European counterparties. UBS marks down its European sovereign bond portfolio. The contagion engine then propagates losses through the interbank network across 5 channels for 8 rounds until the ECB intervenes.
+
+Results from the 7-bank network:
+
+- Total system losses: 439.8bn EUR
+- UniCredit capital wiped to 0% CET1
+- JPMorgan and UBS survived unaided
+- Five European banks (Deutsche Bank, BNP Paribas, Commerzbank, UniCredit, BayernLB) required ECB emergency liquidity assistance totaling 528.8bn EUR
+- 8 rounds of contagion across counterparty, liquidity, fire sale, confidence, and dollar funding channels before equilibrium
 
 ## Quick start
 

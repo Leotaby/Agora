@@ -1,7 +1,7 @@
 {
-  "name": "nexus-humantwin",
+  "name": "agora",
   "version": "0.1.0",
-  "description": "NEXUS = HumanTwin — A Living Synthetic Economy of Human Agents, Predicting Markets from Households to Central Banks",
+  "description": "Agent-based contagion simulation in European interbank networks",
   "scripts": {
     "dev": "concurrently --kill-others -n \"backend,frontend\" -c \"green,cyan\" \"npm run backend\" \"npm run frontend\"",
     "backend": "cd backend && uv run python run.py",
