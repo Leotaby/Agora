@@ -23,6 +23,12 @@ static float g_time = 0.0f;
 static std::set<std::string> g_affected;
 static std::set<std::pair<std::string,std::string>> g_active_edges;
 
+// ECB intervention state
+static bool g_ecb_intervening = false;
+static float g_ecb_ela_total = 0.0f;
+static std::vector<std::string> g_ecb_supported_bank_ids;
+static float g_ecb_base_radius = 0.5f;  // stored at load time
+
 static int g_fb_width = 1280;
 static int g_fb_height = 800;
 
@@ -34,6 +40,15 @@ static void apply_pre_shock() {
     g_affected.clear();
     g_active_edges.clear();
     g_current_round = -1;
+    g_ecb_intervening = false;
+    g_ecb_ela_total = 0.0f;
+    g_ecb_supported_bank_ids.clear();
+
+    // Restore ECB radius to base
+    for (auto& node : g_sim.nodes) {
+        if (node.type == "central_bank")
+            node.radius = g_ecb_base_radius;
+    }
 }
 
 static void advance_round() {
@@ -65,11 +80,43 @@ static void advance_round() {
     g_active_edges.clear();
     for (auto& e : round.active_edges)
         g_active_edges.insert({e.source, e.target});
+
+    // ECB intervention state
+    g_ecb_intervening = round.has_ecb_intervention;
+    g_ecb_supported_bank_ids.clear();
+    if (g_ecb_intervening) {
+        g_ecb_ela_total = round.ecb_facility_total;
+        for (auto& s : round.ecb_supported)
+            g_ecb_supported_bank_ids.push_back(s.bank_id);
+
+        // Scale ECB sphere proportional to total ELA deployed
+        // Base radius 0.5, grows up to 2x at 500bn ELA
+        for (auto& node : g_sim.nodes) {
+            if (node.type == "central_bank") {
+                float scale_factor = 1.0f + std::min(g_ecb_ela_total / 500.0f, 1.0f);
+                node.radius = g_ecb_base_radius * scale_factor;
+            }
+        }
+    } else {
+        g_ecb_ela_total = 0.0f;
+        // Restore ECB radius when not intervening
+        for (auto& node : g_sim.nodes) {
+            if (node.type == "central_bank")
+                node.radius = g_ecb_base_radius;
+        }
+    }
 }
 
 static void reset_simulation() {
     // Reload pre-shock states
     g_sim = fetch_simulation("http://localhost:5001/api/banking/simulate");
+    // Store ECB base radius after layout
+    for (auto& node : g_sim.nodes) {
+        if (node.type == "central_bank") {
+            g_ecb_base_radius = node.radius;
+            break;
+        }
+    }
     apply_pre_shock();
     g_auto_play = false;
 }
@@ -172,6 +219,14 @@ int main() {
         return 1;
     }
 
+    // Store ECB base radius after initial layout
+    for (auto& node : g_sim.nodes) {
+        if (node.type == "central_bank") {
+            g_ecb_base_radius = node.radius;
+            break;
+        }
+    }
+
     // Init renderer
     g_renderer.init();
 
@@ -203,6 +258,8 @@ int main() {
         // Draw 3D scene
         g_renderer.draw_scene(g_sim, g_cam, g_current_round, g_time,
                               g_affected, g_active_edges,
+                              g_ecb_intervening, g_ecb_ela_total,
+                              g_ecb_supported_bank_ids,
                               g_fb_width, g_fb_height);
 
         // Draw HUD
@@ -220,6 +277,7 @@ int main() {
         g_renderer.draw_hud(g_current_round, label, cum_loss,
                             stressed, failed, g_auto_play,
                             (int)g_sim.rounds.size(),
+                            g_ecb_intervening, g_ecb_ela_total,
                             g_fb_width, g_fb_height);
 
         glfwSwapBuffers(window);

@@ -200,6 +200,38 @@ SimulationData fetch_simulation(const std::string& url) {
                 round.banks_stressed = jm.value("banks_stressed", 0);
                 round.banks_failed = jm.value("banks_failed", 0);
                 round.banks_normal = jm.value("banks_normal", 0);
+                round.ecb_facility_total = jm.value("ecb_facility_eur_bn", 0.0f);
+            }
+
+            // ECB intervention detection
+            if (jr.contains("events")) {
+                for (auto& je : jr["events"]) {
+                    std::string channel = je.value("channel", "");
+                    if (channel == "ecb_intervention") {
+                        round.has_ecb_intervention = true;
+                        std::string target = je.value("target_bank_id", "");
+                        if (!target.empty()) {
+                            // Get cb_borrowing from the bank state for this target
+                            float ela = 0.0f;
+                            if (round.bank_states.count(target)) {
+                                // We'll store the cb_borrowing from the bank state
+                                // The parse_bank_state already parsed it, but BankNode
+                                // doesn't have cb_borrowing; use the raw JSON instead
+                            }
+                            // Parse ELA amount from bank_states JSON directly
+                            if (jr.contains("bank_states") && jr["bank_states"].contains(target)) {
+                                ela = jr["bank_states"][target].value("cb_borrowing_eur_bn", 0.0f);
+                            }
+                            round.ecb_supported.push_back({target, ela});
+                        }
+                    }
+                }
+            }
+
+            // Also detect by label as fallback
+            if (round.label.find("ECB") != std::string::npos ||
+                round.label.find("Intervention") != std::string::npos) {
+                round.has_ecb_intervention = true;
             }
 
             sim.rounds.push_back(round);

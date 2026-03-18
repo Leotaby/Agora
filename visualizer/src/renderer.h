@@ -20,6 +20,9 @@ public:
         float time,
         const std::set<std::string>& affected_banks,
         const std::set<std::pair<std::string,std::string>>& active_edges,
+        bool ecb_intervening,
+        float ecb_ela_total,
+        const std::vector<std::string>& ecb_supported_bank_ids,
         int fb_width, int fb_height
     );
     void draw_hud(
@@ -30,6 +33,8 @@ public:
         int banks_failed,
         bool auto_play,
         int total_rounds,
+        bool ecb_intervening,
+        float ecb_ela_total,
         int fb_width, int fb_height
     );
 

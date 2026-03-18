@@ -534,6 +534,9 @@ void Renderer::draw_scene(
     float time,
     const std::set<std::string>& affected_banks,
     const std::set<std::pair<std::string,std::string>>& active_edges,
+    bool ecb_intervening,
+    float ecb_ela_total,
+    const std::vector<std::string>& ecb_supported_bank_ids,
     int fb_width, int fb_height)
 {
     glm::mat4 view = cam.view();
@@ -579,9 +582,44 @@ void Renderer::draw_scene(
         }
     }
 
+    // ── ECB intervention: bright blue pulsing lines from ECB to supported banks ──
+    if (ecb_intervening && !ecb_supported_bank_ids.empty()) {
+        // Find ECB node position
+        glm::vec3 ecb_pos(0.0f);
+        float ecb_radius = 0.5f;
+        for (auto& node : sim.nodes) {
+            if (node.type == "central_bank") {
+                ecb_pos = node.position;
+                ecb_radius = node.radius;
+                break;
+            }
+        }
+
+        for (auto& bank_id : ecb_supported_bank_ids) {
+            auto it = sim.node_index.find(bank_id);
+            if (it == sim.node_index.end()) continue;
+            auto& target_node = sim.nodes[it->second];
+
+            glm::vec3 from = ecb_pos;
+            glm::vec3 to = target_node.position;
+            glm::vec3 dir = glm::normalize(to - from);
+            from += dir * ecb_radius * 0.8f;
+            to -= dir * target_node.radius * 0.8f;
+
+            // Bright blue pulsing line
+            float pulse = 0.6f + 0.4f * sinf(time * 5.0f);
+            float thick = 0.06f + 0.03f * sinf(time * 3.0f);
+            draw_edge(from, to, thick,
+                      glm::vec4(0.2f, 0.5f, 1.0f, pulse), vp);
+        }
+    }
+
     // Draw bank spheres
     for (auto& node : sim.nodes) {
         bool glowing = affected_banks.count(node.id) > 0;
+        // ECB glows during intervention
+        if (ecb_intervening && node.type == "central_bank")
+            glowing = true;
         draw_bank(node, vp, time, glowing);
     }
 
@@ -605,7 +643,7 @@ void Renderer::draw_scene(
         draw_text(node.name, sx - name_w / 2.0f, sy - CELL_H * name_scale - 4,
                   name_scale, glm::vec3(1.0f), fb_width, fb_height);
 
-        // CET1 ratio
+        // CET1 ratio for commercial banks
         if (node.type != "central_bank") {
             std::ostringstream oss;
             oss << std::fixed << std::setprecision(1) << node.cet1_ratio_pct << "%";
@@ -614,6 +652,17 @@ void Renderer::draw_scene(
             float cet1_w = cet1_str.size() * CELL_W * cet1_scale;
             draw_text(cet1_str, sx - cet1_w / 2.0f, sy + 2,
                       cet1_scale, glm::vec3(0.8f, 0.85f, 0.9f), fb_width, fb_height);
+        }
+
+        // ECB ELA label during intervention
+        if (ecb_intervening && node.type == "central_bank") {
+            std::ostringstream oss;
+            oss << "ELA: EUR " << std::fixed << std::setprecision(1) << ecb_ela_total << "bn";
+            std::string ela_str = oss.str();
+            float ela_scale = 2.2f;
+            float ela_w = ela_str.size() * CELL_W * ela_scale;
+            draw_text(ela_str, sx - ela_w / 2.0f, sy + 4,
+                      ela_scale, glm::vec3(0.3f, 0.6f, 1.0f), fb_width, fb_height);
         }
     }
     glEnable(GL_DEPTH_TEST);
@@ -631,13 +680,15 @@ void Renderer::draw_hud(
     int banks_failed,
     bool auto_play,
     int total_rounds,
+    bool ecb_intervening,
+    float ecb_ela_total,
     int fb_width, int fb_height)
 {
     glDisable(GL_DEPTH_TEST);
 
     // Draw dark background bar at bottom
     {
-        float bar_h = 70.0f;
+        float bar_h = ecb_intervening ? 95.0f : 70.0f;
         float y0 = (float)fb_height - bar_h;
         float verts[] = {
             0, y0,         0, 0,
@@ -650,13 +701,10 @@ void Renderer::draw_hud(
         glm::mat4 proj = glm::ortho(0.0f, (float)fb_width, (float)fb_height, 0.0f);
         glUseProgram(text_prog);
         glUniformMatrix4fv(glGetUniformLocation(text_prog, "uProj"), 1, GL_FALSE, glm::value_ptr(proj));
-        // Use a solid color trick: bind font tex, but with a uniform color and alpha
-        // Actually we need a separate solid-color draw. Let's just use text on a dark area
-        // We'll skip the background quad for simplicity and just draw bright text
     }
 
-    float y_line1 = (float)fb_height - 55.0f;
-    float y_line2 = (float)fb_height - 28.0f;
+    float y_line1 = (float)fb_height - (ecb_intervening ? 80.0f : 55.0f);
+    float y_line2 = (float)fb_height - (ecb_intervening ? 55.0f : 28.0f);
     float scale = 2.2f;
 
     // Line 1: Round info and losses
@@ -683,6 +731,32 @@ void Renderer::draw_hud(
         oss << "  [R] Reset  [ESC] Quit";
         draw_text(oss.str(), 12, y_line2, 1.8f, glm::vec3(0.5f, 0.55f, 0.6f),
                   fb_width, fb_height);
+    }
+
+    // Line 3: JPMorgan cross-Atlantic channel explanation (always visible)
+    {
+        float y_line3 = (float)fb_height - 5.0f;
+        std::string jpm_text = "JPM: dollar repo funding withdrawal - cross-Atlantic transmission channel";
+        draw_text(jpm_text, 12, y_line3, 1.8f, glm::vec3(0.85f, 0.7f, 0.3f),
+                  fb_width, fb_height);
+    }
+
+    // ECB intervention banner at top
+    if (ecb_intervening) {
+        std::ostringstream oss;
+        oss << ">>> ECB INTERVENTION - ELA DEPLOYED: EUR "
+            << std::fixed << std::setprecision(1) << ecb_ela_total << "bn <<<";
+        std::string banner = oss.str();
+        float banner_scale = 2.5f;
+        float banner_w = banner.size() * CELL_W * banner_scale;
+        float bx = ((float)fb_width - banner_w) / 2.0f;
+
+        // Pulsing blue color for the intervention banner
+        float pulse = 0.7f + 0.3f * sinf((float)current_round * 0.5f +
+                      // Use a simple animation based on frame - approximate with y position
+                      fb_height * 0.001f);
+        draw_text(banner, bx, 18.0f, banner_scale,
+                  glm::vec3(0.3f, 0.6f, 1.0f), fb_width, fb_height);
     }
 
     glEnable(GL_DEPTH_TEST);

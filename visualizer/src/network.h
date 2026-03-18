@@ -31,6 +31,11 @@ struct ContagionEdge {
     std::string target;
 };
 
+struct EcbSupport {
+    std::string bank_id;
+    float ela_amount = 0;   // cb_borrowing_eur_bn for this bank
+};
+
 struct RoundState {
     int round_num = 0;
     std::string label;
@@ -42,6 +47,11 @@ struct RoundState {
     int banks_stressed = 0;
     int banks_failed = 0;
     int banks_normal = 0;
+
+    // ECB intervention data
+    bool has_ecb_intervention = false;
+    float ecb_facility_total = 0;           // system-wide ECB support (EUR bn)
+    std::vector<EcbSupport> ecb_supported;  // banks receiving ELA
 };
 
 struct SimulationData {
