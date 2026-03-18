@@ -98,12 +98,15 @@ class ContagionEngine:
         # events is a list of ContagionEvent describing the cascade
     """
 
-    def __init__(self, seed: int = 42):
+    def __init__(self, seed: int = 42, ecb_intervention: bool = True):
         self._rng = random.Random(seed)
         self.banks: dict[str, Bank] = {}
         self.interbank_exposures: list[InterbankExposure] = []
         self.contagion_log: list[ContagionEvent] = []
         self._max_log: int = 5000
+
+        # ECB backstop
+        self.ecb_intervention: bool = ecb_intervention
 
         # Contagion parameters
         self.fire_sale_price_impact: float = 0.02     # 2% price drop per €100bn sold
@@ -189,8 +192,9 @@ class ContagionEngine:
                 break  # equilibrium reached
 
         # Phase 3: ECB intervention (lender of last resort)
-        ecb_events = self._ecb_intervention(tick, round_num + 1)
-        events.extend(ecb_events)
+        if self.ecb_intervention:
+            ecb_events = self._ecb_intervention(tick, round_num + 1)
+            events.extend(ecb_events)
 
         # Update all statuses
         for bank in self.banks.values():

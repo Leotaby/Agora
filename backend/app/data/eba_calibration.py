@@ -340,4 +340,7 @@ ACTUAL_2012_CET1_RATIOS: dict[str, float] = {
     "BNP": 9.9,
     "UCG": 9.0,
     "CBK": 9.7,
+    "BayLB": 9.8,
+    "UBS": 15.3,
+    "JPM": 11.1,
 }
