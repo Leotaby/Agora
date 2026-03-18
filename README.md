@@ -11,6 +11,17 @@
 
 Agent-based simulation of systemic risk and contagion in European interbank networks.
 
+## Screenshots
+
+**Pre-shock network: all banks healthy (2011 calibration)**
+![AGORA Overview](docs/screenshots/agora_overview.png)
+
+**Contagion cascade: UniCredit shock spreading through the network**
+![Contagion in progress](docs/screenshots/agora_contagion.png)
+
+**ECB intervention: 224bn EUR Emergency Liquidity Assistance deployed**
+![ECB Intervention](docs/screenshots/agora_ecb_intervention.png)
+
 ## Scientific question
 
 How do solvency and liquidity shocks propagate through interbank networks? When does central bank intervention prevent systemic collapse, and by how much? These are the questions that reduced-form panel econometrics cannot answer, because they require a structural model with explicit network topology, heterogeneous bank balance sheets, and endogenous feedback loops between asset prices, funding markets, and capital adequacy.
