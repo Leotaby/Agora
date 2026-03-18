@@ -13,7 +13,7 @@
   <img src="docs/screenshot.svg" alt="AGORA simulation output" width="800">
 </p>
 
-AGORA models how a localized banking shock propagates through a cross-Atlantic interbank network to produce systemic crisis. Seven banks are represented as fully specified balance sheets (assets, liabilities, capital, liquidity buffers) connected by directed overnight and term lending relationships. Contagion transmits through five channels until either equilibrium or central bank intervention. The project grew out of MSc thesis work on Eurozone bank stability at Federico II di Napoli and is being developed toward a PhD application at GSEFM Frankfurt.
+AGORA models how a localized banking shock propagates through a cross-Atlantic interbank network to produce systemic crisis. Seven banks are represented as fully specified balance sheets (assets, liabilities, capital, liquidity buffers) connected by directed overnight and term lending relationships. Contagion transmits through five channels until either equilibrium or central bank intervention. The project grew out of MSc thesis work on Eurozone bank stability at Federico II di Napoli and is being developed toward a PhD application.
 
 **Scientific question.** Under what conditions does the failure of a single nationally important bank cascade into a system-wide crisis requiring central bank intervention, and how do cross-border dollar funding dependencies amplify European contagion?
 
