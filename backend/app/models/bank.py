@@ -257,6 +257,11 @@ class Bank:
     roe_pct: float = 0.0                     # return on equity
     cost_income_ratio_pct: float = 0.0
 
+    # Calibration metadata
+    italian_sovereign_eur_bn: float = 0.0    # Italian govt bond exposure
+    calibration_source: str = ""             # e.g. "EBA Capital Exercise Dec 2011"
+    calibration_period: str = ""             # e.g. "2011-Q4"
+
     # ---------------------------------------------------------------
     # Derived metrics
     # ---------------------------------------------------------------
@@ -276,6 +281,22 @@ class Bank:
     @property
     def leverage_ratio(self) -> float:
         return self.capital.leverage_ratio(self.total_assets_eur_bn)
+
+    @property
+    def cet1_capital_eur_bn(self) -> float:
+        return self.capital.cet1_capital_eur_bn
+
+    @property
+    def deposits_eur_bn(self) -> float:
+        return self.liabilities.retail_deposits_eur_bn + self.liabilities.corporate_deposits_eur_bn
+
+    @property
+    def wholesale_funding_eur_bn(self) -> float:
+        return self.liabilities.wholesale_funding_eur_bn
+
+    @property
+    def sovereign_bonds_eur_bn(self) -> float:
+        return self.assets.sovereign_bonds_eur_bn
 
     @property
     def balance_sheet_gap_eur_bn(self) -> float:
