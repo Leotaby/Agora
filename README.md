@@ -58,7 +58,7 @@ Hatef Tabbakhian (2025), Working paper, University of Naples Federico II
 1. **Counterparty losses.** Banks that lent to stressed or failed banks take direct write-downs on interbank exposure, proportional to the borrower's probability of default.
 2. **Liquidity withdrawal.** Wholesale funding markets freeze for banks connected to stressed counterparties, as guilt-by-association causes repo and commercial paper investors to pull back.
 3. **Fire sales.** Stressed banks dump sovereign bonds to rebuild LCR buffers, and the forced selling depresses prices, causing mark-to-market losses across all banks holding the same asset class.
-4. **Confidence contagion.** CDS spreads from stressed banks infect connected neighbours through the interbank graph, raising funding costs and pushing marginal banks toward insolvency.
+4. **Confidence contagion.** CDS spreads from stressed banks infect connected neighbours through the interbank graph, widening credit spreads and worsening market confidence across connected institutions.
 5. **Dollar funding freeze.** JPMorgan restricts secured dollar repo lines to all European borrowers when sovereign risk spikes, draining reserves from banks that depend on cross-border dollar funding.
 
 ## Data calibration (2011)
