@@ -43,6 +43,16 @@ Scenario: 8% loan writedown, 15% BTP haircut, 40% corporate deposit run, and 50%
 
 The ECB's lender-of-last-resort function prevented 3 additional bank failures and 284 bn EUR in system losses by breaking the confidence-fire sale feedback loop.
 
+## Working Paper
+
+**Endogenous Contagion and Central Bank Intervention in European Interbank Networks: An Agent-Based Approach**
+
+Hatef Tabbakhian (2025), Working paper, University of Naples Federico II
+
+**Abstract:** We study the propagation of banking shocks through an explicit interbank network calibrated using publicly available 2011 balance-sheet and supervisory data for seven major European and cross-border banks. Using an agent-based simulation framework, we trace contagion through five transmission channels: counterparty losses, liquidity withdrawal, sovereign bond fire sales, CDS spread contagion, and a dollar funding freeze. Our central result is a counterfactual experiment: removing the ECB lender-of-last-resort facility from the Italian sovereign crisis scenario generates approximately 283.3bn EUR in additional system losses, extends the contagion cascade from 11 to 20 rounds, and pushes three additional banks to effective insolvency. More broadly, the paper shows how an explicit network model captures institution-level propagation mechanisms that reduced-form panel approaches do not represent directly. The paper contributes a calibrated structural complement to existing panel evidence on the macroeconomic determinants of bank stability and quantifies the systemic value of central bank intervention under explicit network topology.
+
+**Key finding from sensitivity analysis:** The ECB contribution is invariant to initial shock magnitude but highly sensitive to network density. Doubling interbank exposures increases the ECB contribution by 64%. The value of lender-of-last-resort intervention comes from breaking the propagation cascade, not from absorbing the first-round impact.
+
 ## Contagion channels
 
 1. **Counterparty losses.** Banks that lent to stressed or failed banks take direct write-downs on interbank exposure, proportional to the borrower's probability of default.
