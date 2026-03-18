@@ -36,12 +36,12 @@ Scenario: 8% loan writedown, 15% BTP haircut, 40% corporate deposit run, and 50%
 
 |                         | With ECB       | Without ECB    | Delta           |
 |-------------------------|----------------|----------------|-----------------|
-| Total system losses     | 531 bn EUR     | 815 bn EUR     | +284 bn EUR     |
+| Total system losses     | 531 bn EUR     | 815 bn EUR     | +283.3 bn EUR   |
 | Contagion rounds        | 11             | 20             | +9              |
 | Banks at CET1 ~ 0%     | 1 (UCG)        | 4 (DBK, BNP, UCG, CBK) | +3     |
 | ECB ELA deployed        | 224 bn EUR     | 0              | -224 bn EUR     |
 
-The ECB's lender-of-last-resort function prevented 3 additional bank failures and 284 bn EUR in system losses by breaking the confidence-fire sale feedback loop.
+The ECB's lender-of-last-resort function prevented three additional banks from reaching effective insolvency (CET1 approaching zero) and 283.3 bn EUR in system losses by breaking the confidence-fire sale feedback loop.
 
 ## Working Paper
 
@@ -49,7 +49,7 @@ The ECB's lender-of-last-resort function prevented 3 additional bank failures an
 
 Hatef Tabbakhian (2025), Working paper, University of Naples Federico II
 
-**Abstract:** We study the propagation of banking shocks through an explicit interbank network calibrated using publicly available 2011 balance-sheet and supervisory data for seven major European and cross-border banks. Using an agent-based simulation framework, we trace contagion through five transmission channels: counterparty losses, liquidity withdrawal, sovereign bond fire sales, CDS spread contagion, and a dollar funding freeze. Our central result is a counterfactual experiment: removing the ECB lender-of-last-resort facility from the Italian sovereign crisis scenario generates approximately 283.3bn EUR in additional system losses, extends the contagion cascade from 11 to 20 rounds, and pushes three additional banks to effective insolvency. More broadly, the paper shows how an explicit network model captures institution-level propagation mechanisms that reduced-form panel approaches do not represent directly. The paper contributes a calibrated structural complement to existing panel evidence on the macroeconomic determinants of bank stability and quantifies the systemic value of central bank intervention under explicit network topology.
+**Abstract:** We study the propagation of banking shocks through an explicit interbank network calibrated using publicly available 2011 balance-sheet and supervisory data for seven major European and cross-border banks. Using an agent-based simulation framework, we trace contagion through five transmission channels: counterparty losses, liquidity withdrawal, sovereign bond fire sales, CDS spread contagion, and a dollar funding freeze. Our central result is a counterfactual experiment: removing the ECB lender-of-last-resort facility from the Italian sovereign crisis scenario generates approximately 283.3bn EUR in additional system losses, extends the contagion cascade from 11 to 20 rounds, and pushes three additional banks to effective insolvency (CET1 approaching zero). More broadly, the paper shows how an explicit network model captures institution-level propagation mechanisms that reduced-form panel approaches do not represent directly. The paper contributes a calibrated structural complement to existing panel evidence on the macroeconomic determinants of bank stability and quantifies the systemic value of central bank intervention under explicit network topology.
 
 **Key finding from sensitivity analysis:** The ECB contribution is invariant to initial shock magnitude but highly sensitive to network density. Doubling interbank exposures increases the ECB contribution by 64%. The value of lender-of-last-resort intervention comes from breaking the propagation cascade, not from absorbing the first-round impact.
 
@@ -73,7 +73,7 @@ The five eurozone banks are calibrated to real published data from Q4 2011, not 
 - EBA Capital Exercise December 2011
 - BIS Consolidated Banking Statistics Q4 2011
 
-UBS and JPMorgan retain synthetic balance sheets (they were not part of the EBA exercise).
+UBS is calibrated using the UBS Annual Report 2011. JPMorgan is calibrated using the JPMorgan Chase 2011 Annual Report with EUR values converted at the end-2011 USD/EUR exchange rate of 1.295. Dollar repo exposure to European counterparties is calibrated to the order of magnitude implied by BIS Q4 2011 cross-border claims data.
 
 ## Bank network
 
