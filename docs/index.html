@@ -9,11 +9,6 @@
 :root{--green:#00ff41;--cyan:#00ffff;--orange:#ff6b00;--red:#ff0040;--blue:#0088ff;--bg:#000000;--panel:rgba(0,8,0,0.85);--border:rgba(0,255,65,0.15)}
 body{background:var(--bg);color:var(--green);font-family:'Courier New',Courier,monospace;overflow:hidden;height:100vh;width:100vw}
 
-/* Scanline overlay */
-body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;
-  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.08) 2px,rgba(0,0,0,0.08) 4px);
-  pointer-events:none;z-index:9999}
-
 /* Layout */
 #app{display:flex;height:100vh;width:100vw}
 #left-panel{width:220px;min-width:220px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:10}
@@ -36,26 +31,23 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;
 
 /* Right panel - bank status */
 #right-header{padding:8px 10px;border-bottom:1px solid var(--border);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:rgba(0,255,65,0.5)}
-#bank-list{flex:1;overflow-y:auto;padding:6px 0}
-.bank-card{padding:6px 10px;margin:2px 6px;border:1px solid rgba(0,255,65,0.08);border-radius:2px;transition:all 0.5s}
-.bank-card.normal{border-left:2px solid var(--green)}
-.bank-card.stressed{border-left:2px solid var(--orange)}
-.bank-card.critical{border-left:2px solid var(--red)}
-.bank-card.ecb{border-left:2px solid var(--blue);background:rgba(0,60,180,0.1)}
-.bank-name{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
-.bank-name.normal{color:var(--green)}
-.bank-name.stressed{color:var(--orange)}
-.bank-name.critical{color:var(--red)}
-.cet1-row{display:flex;align-items:center;gap:6px;margin-bottom:2px}
+#bank-list{flex:1;overflow-y:auto;padding:4px 0}
+.bank-card{padding:8px 10px;margin:3px 6px;border:1px solid rgba(0,255,65,0.08);border-radius:2px;transition:all 0.5s}
+.bank-card.normal{border-left:3px solid var(--green)}
+.bank-card.stressed{border-left:3px solid var(--orange)}
+.bank-card.critical{border-left:3px solid var(--red)}
+.bank-card.ecb{border-left:3px solid var(--blue);background:rgba(0,60,180,0.1)}
+.bank-name{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#ffffff;margin-bottom:4px}
+.cet1-num{font-size:16px;font-weight:700;margin-bottom:3px;transition:color 0.5s}
+.cet1-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
 .cet1-label{font-size:8px;color:rgba(0,255,65,0.4);width:28px;text-transform:uppercase}
-.cet1-bar-bg{flex:1;height:6px;background:rgba(255,255,255,0.05);border-radius:1px;overflow:hidden}
-.cet1-bar{height:100%;border-radius:1px;transition:width 0.8s ease,background 0.5s}
-.cet1-val{font-size:9px;width:36px;text-align:right;font-weight:700}
-.bank-meta{font-size:8px;color:rgba(0,255,65,0.3);display:flex;justify-content:space-between;margin-top:2px}
-.status-tag{font-size:8px;letter-spacing:1px;text-transform:uppercase;font-weight:700;padding:1px 4px;border-radius:1px;display:inline-block;margin-top:2px}
-.status-tag.normal{color:var(--green);background:rgba(0,255,65,0.08)}
-.status-tag.stressed{color:var(--orange);background:rgba(255,107,0,0.1)}
-.status-tag.critical{color:var(--red);background:rgba(255,0,64,0.1)}
+.cet1-bar-bg{flex:1;height:4px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden}
+.cet1-bar{height:100%;border-radius:2px;transition:width 0.8s ease,background 0.5s}
+.bank-meta{font-size:8px;color:rgba(255,255,255,0.35);display:flex;justify-content:space-between;align-items:center}
+.status-tag{font-size:8px;letter-spacing:1px;text-transform:uppercase;font-weight:700;padding:2px 6px;border-radius:2px;display:inline-block}
+.status-tag.normal{color:var(--green);background:rgba(0,255,65,0.1)}
+.status-tag.stressed{color:var(--orange);background:rgba(255,107,0,0.12)}
+.status-tag.critical{color:var(--red);background:rgba(255,0,64,0.12)}
 
 /* Bottom HUD */
 #hud{position:absolute;bottom:0;left:0;right:0;height:48px;background:linear-gradient(transparent,rgba(0,0,0,0.95));display:flex;align-items:flex-end;justify-content:center;gap:40px;padding-bottom:10px;z-index:10;pointer-events:none}
@@ -157,19 +149,21 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {CSS2DRenderer, CSS2DObject} from 'three/addons/renderers/CSS2DRenderer.js';
 
 /* ================================================================
    BAKED SIMULATION DATA
    ================================================================ */
+// Banks on circle radius=6 in XZ, ECB at top y=4
 const BANKS = {
-  ECB:   {name:"ECB",             assets:6900, country:"EU", x:0,   y:7,    z:0,   ecb:true},
-  JPM:   {name:"JPMORGAN CHASE",  assets:3550, country:"US", x:9,   y:-0.5, z:5},
-  UBS:   {name:"UBS",             assets:1550, country:"CH", x:-8,  y:0,    z:6},
-  BNP:   {name:"BNP PARIBAS",    assets:1698, country:"FR", x:-4.5,y:-0.5, z:-3.5},
-  DBK:   {name:"DEUTSCHE BANK",  assets:1117, country:"DE", x:3.5, y:-0.5, z:-4.5},
-  UCG:   {name:"UNICREDIT",      assets:884,  country:"IT", x:0,   y:-2,   z:-7},
-  CBK:   {name:"COMMERZBANK",    assets:501,  country:"DE", x:6,   y:-1,   z:-1},
-  BayLB: {name:"BAYERNLB",       assets:234,  country:"DE", x:-2.5,y:-1.5, z:4.5},
+  ECB:   {name:"ECB",             assets:6900, country:"EU", x:0,    y:4,    z:0,    ecb:true},
+  JPM:   {name:"JPMORGAN",       assets:3550, country:"US", x:6,    y:0,    z:0},
+  UBS:   {name:"UBS",             assets:1550, country:"CH", x:4.2,  y:0,    z:4.2},
+  BNP:   {name:"BNP PARIBAS",    assets:1698, country:"FR", x:0,    y:0,    z:6},
+  DBK:   {name:"DEUTSCHE BK",    assets:1117, country:"DE", x:-4.2, y:0,    z:4.2},
+  UCG:   {name:"UNICREDIT",      assets:884,  country:"IT", x:-6,   y:0,    z:0},
+  CBK:   {name:"COMMERZBANK",    assets:501,  country:"DE", x:-4.2, y:0,    z:-4.2},
+  BayLB: {name:"BAYERNLB",       assets:234,  country:"DE", x:0,    y:0,    z:-6},
 };
 const BANK_ORDER = ["JPM","UBS","BNP","DBK","UCG","CBK","BayLB"];
 
@@ -261,14 +255,14 @@ orbit.minDistance = 8;
 orbit.maxDistance = 50;
 orbit.target.set(0, 0, 0);
 
-// Lights
-scene.add(new THREE.AmbientLight(0x112211, 0.8));
-const dLight = new THREE.DirectionalLight(0xffffff, 0.6);
-dLight.position.set(8, 12, 10);
-scene.add(dLight);
-const pLight = new THREE.PointLight(0x0044ff, 0.4, 40);
-pLight.position.set(0, 10, 0);
-scene.add(pLight);
+// Lights (fix 7: proper illumination)
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const pLight1 = new THREE.PointLight(0xffffff, 1.0, 60);
+pLight1.position.set(0, 10, 10);
+scene.add(pLight1);
+const pLight2 = new THREE.PointLight(0x00ff41, 0.3, 40);
+pLight2.position.set(0, 0, 0);
+scene.add(pLight2);
 
 /* ================================================================
    STAR FIELD
@@ -285,26 +279,50 @@ starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
 scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({color:0xffffff, size:0.08, transparent:true, opacity:0.35})));
 
 /* ================================================================
-   BANK SPHERES
+   CSS2D LABEL RENDERER
    ================================================================ */
-const meshes = {}, glows = {};
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(W(), H());
+labelRenderer.domElement.style.position = 'absolute';
+labelRenderer.domElement.style.top = '0';
+labelRenderer.domElement.style.left = '0';
+labelRenderer.domElement.style.pointerEvents = 'none';
+centerEl.appendChild(labelRenderer.domElement);
+
+/* ================================================================
+   BANK SPHERES (fix 3: bright MeshPhongMaterial with emissive)
+   ================================================================ */
+const meshes = {}, glows = {}, bankLabelEls = {};
 for(const [id, b] of Object.entries(BANKS)){
-  const r = b.ecb ? 0.8 : 0.22 + Math.sqrt(b.assets/3550)*0.65;
+  const r = b.ecb ? 0.9 : 0.3 + Math.sqrt(b.assets/3550)*0.6;
   const col = b.ecb ? C_BLUE : C_GREEN;
-  const mat = new THREE.MeshStandardMaterial({color:col, emissive:col, emissiveIntensity:b.ecb?0.5:0.25, metalness:0.7, roughness:0.3});
+  const mat = new THREE.MeshPhongMaterial({color:col, emissive:col, emissiveIntensity:0.4, shininess:80, specular:new THREE.Color(0x444444)});
   const mesh = new THREE.Mesh(new THREE.SphereGeometry(r,32,32), mat);
   mesh.position.set(b.x, b.y, b.z);
   scene.add(mesh);
   meshes[id] = mesh;
-  // Glow
-  const gMat = new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.06, side:THREE.BackSide});
-  const glow = new THREE.Mesh(new THREE.SphereGeometry(r*2,16,16), gMat);
+  // Glow shell
+  const gMat = new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.12, side:THREE.BackSide});
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(r*1.8,16,16), gMat);
   mesh.add(glow);
   glows[id] = glow;
+
+  // CSS2D Label (fix 1: visible labels above each sphere)
+  const labelDiv = document.createElement('div');
+  labelDiv.style.cssText = 'font-family:Courier New,monospace;text-align:center;pointer-events:none;text-shadow:0 0 8px rgba(0,0,0,1),0 0 4px rgba(0,0,0,1)';
+  if(b.ecb){
+    labelDiv.innerHTML = '<div style="font-size:14px;font-weight:700;color:#0088ff;letter-spacing:2px">ECB</div>';
+  } else {
+    labelDiv.innerHTML = `<div style="font-size:12px;font-weight:700;color:#ffffff;letter-spacing:1px">${id}</div><div class="lbl-cet1" style="font-size:11px;font-weight:700;color:#00ff41">--</div>`;
+  }
+  const labelObj = new CSS2DObject(labelDiv);
+  labelObj.position.set(0, r + 0.5, 0);
+  mesh.add(labelObj);
+  bankLabelEls[id] = labelDiv;
 }
 
 /* ================================================================
-   INTERBANK EDGES (dashed, animated)
+   INTERBANK EDGES (fix 2: bright LineBasicMaterial, full opacity)
    ================================================================ */
 const edges = [];
 for(const e of EXPOSURES){
@@ -312,11 +330,9 @@ for(const e of EXPOSURES){
   if(!a||!b) continue;
   const pts=[new THREE.Vector3(a.x,a.y,a.z), new THREE.Vector3(b.x,b.y,b.z)];
   const geo = new THREE.BufferGeometry().setFromPoints(pts);
-  geo.computeBoundingSphere();
-  const mat = new THREE.LineDashedMaterial({color:C_EDGE, transparent:true, opacity:0.12+e.a/15*0.18, dashSize:0.3, gapSize:0.2, linewidth:1});
+  const mat = new THREE.LineBasicMaterial({color:C_GREEN, transparent:true, opacity:0.3+e.a/15*0.4, linewidth:2});
   const line = new THREE.Line(geo, mat);
-  line.computeLineDistances();
-  line.userData = {from:e.f, to:e.t, amt:e.a, baseMat:mat};
+  line.userData = {from:e.f, to:e.t, amt:e.a};
   scene.add(line);
   edges.push(line);
 }
@@ -332,7 +348,7 @@ for(const id of BANK_ORDER){
     const t=i/50;
     pts.push(new THREE.Vector3(
       ecb.x+(b.x-ecb.x)*t,
-      ecb.y+(b.y-ecb.y)*t + Math.sin(t*Math.PI)*2.5,
+      ecb.y+(b.y-ecb.y)*t + Math.sin(t*Math.PI)*1.5,
       ecb.z+(b.z-ecb.z)*t
     ));
   }
@@ -449,9 +465,10 @@ function buildBankCards(){
     div.className = 'bank-card normal';
     div.id = 'card-'+id;
     div.innerHTML = `
-      <div class="bank-name normal" id="bn-${id}">${id} <span style="font-weight:400;font-size:8px;opacity:0.4">${BANKS[id].country}</span></div>
-      <div class="cet1-row"><span class="cet1-label">CET1</span><div class="cet1-bar-bg"><div class="cet1-bar" id="bar-${id}" style="width:50%;background:var(--green)"></div></div><span class="cet1-val" id="cv-${id}" style="color:var(--green)">--</span></div>
-      <div class="bank-meta"><span>LCR <span id="lcr-${id}">--</span>%</span><span class="status-tag normal" id="st-${id}">NORMAL</span></div>`;
+      <div class="bank-name" id="bn-${id}">${id} <span style="font-weight:400;font-size:8px;color:rgba(255,255,255,0.3)">${BANKS[id].country}</span></div>
+      <div class="cet1-num" id="cv-${id}" style="color:var(--green)">--</div>
+      <div class="cet1-row"><span class="cet1-label">CET1</span><div class="cet1-bar-bg"><div class="cet1-bar" id="bar-${id}" style="width:50%;background:var(--green)"></div></div></div>
+      <div class="bank-meta"><span>LCR <span id="lcr-${id}">--</span>%</span><span class="status-tag normal" id="st-${id}">HEALTHY</span></div>`;
     bankListEl.appendChild(div);
   }
 }
@@ -461,7 +478,6 @@ function updateBankCards(data){
     const d = data.b[id];
     if(!d) continue;
     const card = document.getElementById('card-'+id);
-    const bn = document.getElementById('bn-'+id);
     const bar = document.getElementById('bar-'+id);
     const cv = document.getElementById('cv-'+id);
     const lcr = document.getElementById('lcr-'+id);
@@ -469,7 +485,6 @@ function updateBankCards(data){
     const isEcb = data.ecb && data.ecb.includes(id);
 
     card.className = 'bank-card ' + d.s + (isEcb?' ecb':'');
-    bn.className = 'bank-name ' + d.s;
     const pct = Math.max(0, Math.min(100, d.c / 16 * 100));
     const col = d.s==='normal'?'var(--green)':d.s==='stressed'?'var(--orange)':'var(--red)';
     bar.style.width = pct + '%';
@@ -478,7 +493,8 @@ function updateBankCards(data){
     cv.style.color = col;
     lcr.textContent = d.l;
     st.className = 'status-tag ' + d.s;
-    st.textContent = d.s.toUpperCase();
+    const statusText = d.s==='normal'?'HEALTHY':d.s==='stressed'?'STRESSED':'CRITICAL';
+    st.textContent = statusText;
   }
 }
 
@@ -504,16 +520,27 @@ function goToRound(idx, animate){
   const data = R[idx];
   if(!data) return;
 
-  // Update 3D spheres
+  // Update 3D spheres + labels
   for(const [id, d] of Object.entries(data.b)){
     const m = meshes[id], g = glows[id];
     if(!m) continue;
     const col = STATUS_C[d.s] || C_GREEN;
-    m.material.color.lerp(col, animate ? 0.5 : 1);
-    m.material.emissive.lerp(col, animate ? 0.5 : 1);
-    m.material.emissiveIntensity = d.s==='critical' ? 0.5 : 0.25;
+    const t = animate ? 0.5 : 1;
+    m.material.color.lerp(col, t);
+    m.material.emissive.lerp(col, t);
+    m.material.emissiveIntensity = d.s==='critical' ? 0.6 : 0.4;
     g.material.color.copy(col);
-    g.material.opacity = d.s==='critical' ? 0.12 : 0.06;
+    g.material.opacity = d.s==='critical' ? 0.2 : 0.12;
+
+    // Update CSS2D label CET1 text and color
+    const lbl = bankLabelEls[id];
+    if(lbl){
+      const cet1El = lbl.querySelector('.lbl-cet1');
+      if(cet1El){
+        cet1El.textContent = 'CET1 '+d.c.toFixed(1)+'%';
+        cet1El.style.color = d.s==='normal'?'#00ff41':d.s==='stressed'?'#ff6b00':'#ff0040';
+      }
+    }
 
     // Shockwave on status change to critical
     if(animate && d.s==='critical' && prevStatuses[id] !== 'critical'){
@@ -523,16 +550,21 @@ function goToRound(idx, animate){
   prevStatuses = {};
   for(const [id,d] of Object.entries(data.b)) prevStatuses[id] = d.s;
 
-  // Edge colors: tint toward red if both endpoints stressed/critical
+  // Edge colors: bright green/orange/red (fix 2)
   for(const e of edges){
     const fs = data.b[e.userData.from], ts = data.b[e.userData.to];
     if(!fs||!ts){ continue; }
-    let edgeCol = C_EDGE;
     const worst = [fs.s, ts.s];
-    if(worst.includes('critical')) edgeCol = new THREE.Color(0x330008);
-    else if(worst.includes('stressed')) edgeCol = new THREE.Color(0x2a1a00);
-    e.material.color.copy(edgeCol);
-    e.material.opacity = worst.includes('critical') ? 0.35 : worst.includes('stressed') ? 0.25 : 0.12+e.userData.amt/15*0.18;
+    if(worst.includes('critical')){
+      e.material.color.copy(C_RED);
+      e.material.opacity = 0.6;
+    } else if(worst.includes('stressed')){
+      e.material.color.copy(C_ORANGE);
+      e.material.opacity = 0.5;
+    } else {
+      e.material.color.copy(C_GREEN);
+      e.material.opacity = 0.3 + e.userData.amt/15*0.4;
+    }
   }
 
   // ECB
@@ -659,11 +691,6 @@ function animate(){
     m.position.y = b.y + Math.sin(t*0.6 + b.x*0.5)*0.1;
   }
 
-  // Animate dash offset on edges
-  for(const e of edges){
-    e.material.dashOffset -= 0.005;
-  }
-
   // Shockwaves
   for(let i=shockwaves.length-1; i>=0; i--){
     const s = shockwaves[i];
@@ -698,13 +725,14 @@ function animate(){
     const tt = p.t;
     p.mesh.position.set(
       p.from.x + (p.to.x - p.from.x)*tt,
-      p.from.y + (p.to.y - p.from.y)*tt + Math.sin(tt*Math.PI)*2.5,
+      p.from.y + (p.to.y - p.from.y)*tt + Math.sin(tt*Math.PI)*1.5,
       p.from.z + (p.to.z - p.from.z)*tt
     );
     p.mesh.material.opacity = 0.5 + Math.sin(tt*Math.PI)*0.5;
   }
 
   renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
 }
 
 /* ================================================================
@@ -714,6 +742,7 @@ window.addEventListener('resize', ()=>{
   camera.aspect = W()/H();
   camera.updateProjectionMatrix();
   renderer.setSize(W(), H());
+  labelRenderer.setSize(W(), H());
 });
 
 /* ================================================================
