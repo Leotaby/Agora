@@ -108,7 +108,7 @@ uv run python run.py
 
 ## Connection to MSc thesis
 
-The macro-financial elasticities estimated in the MSc thesis provide the exogenous shock calibration for this simulator. The thesis repo is at [github.com/Leotaby/macro-panel-thesis](https://github.com/Leotaby/macro-panel-thesis).
+The macro-financial elasticities estimated in the MSc thesis provide the exogenous shock calibration for this simulator. The thesis repo is at https://github.com/Leotaby/macro-bank-stability-panel .
 
 ## Author
 
