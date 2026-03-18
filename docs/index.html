@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AGORA - Banking Contagion Simulation</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a1a;color:#e0e0e0;font-family:'SF Mono','Fira Code','Consolas',monospace;overflow:hidden}
+#canvas-container{position:fixed;top:0;left:0;width:100%;height:100%}
+#hud{position:fixed;bottom:0;left:0;right:0;padding:16px 24px;background:linear-gradient(transparent,rgba(10,10,26,0.95));pointer-events:none;z-index:10}
+#hud-inner{display:flex;justify-content:space-between;align-items:flex-end;max-width:1200px;margin:0 auto}
+.hud-block{text-align:center}
+.hud-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#607090;margin-bottom:4px}
+.hud-value{font-size:22px;font-weight:700;color:#c0d0e8}
+.hud-value.loss{color:#ff6b6b}
+.hud-value.round{color:#64b5f6}
+.hud-value.stressed{color:#ffa726}
+#title-bar{position:fixed;top:0;left:0;right:0;padding:16px 24px;background:linear-gradient(rgba(10,10,26,0.95),transparent);z-index:10;pointer-events:none}
+#title-bar h1{font-size:14px;letter-spacing:3px;text-transform:uppercase;color:#607090;font-weight:400}
+#title-bar .subtitle{font-size:11px;color:#405060;margin-top:4px}
+#controls{position:fixed;top:50%;left:24px;transform:translateY(-50%);z-index:20;display:flex;flex-direction:column;gap:8px}
+button{background:rgba(30,40,60,0.8);border:1px solid #2a3a5a;color:#a0b8d0;padding:10px 18px;font-family:inherit;font-size:12px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;border-radius:4px;transition:all 0.2s;pointer-events:auto}
+button:hover{background:rgba(50,70,100,0.9);border-color:#4080c0;color:#e0f0ff}
+button.active{background:rgba(40,80,140,0.7);border-color:#4090e0;color:#ffffff}
+#info-panel{position:fixed;top:80px;right:24px;width:220px;z-index:10;pointer-events:none}
+.bank-info{padding:6px 10px;margin-bottom:3px;background:rgba(20,25,40,0.7);border-left:3px solid #405060;border-radius:0 3px 3px 0;font-size:11px;display:flex;justify-content:space-between;transition:all 0.4s}
+.bank-info .name{font-weight:600}
+.bank-info .cet1{font-weight:700}
+.bank-info.normal{border-left-color:#4caf50}
+.bank-info.stressed{border-left-color:#ff9800}
+.bank-info.critical{border-left-color:#f44336}
+.bank-info.ecb-active{border-left-color:#42a5f5;background:rgba(30,60,100,0.5)}
+#ecb-banner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:30;background:rgba(20,60,120,0.9);border:1px solid #4090e0;padding:18px 36px;border-radius:6px;font-size:14px;letter-spacing:2px;text-transform:uppercase;color:#90caf9;display:none;text-align:center;pointer-events:none}
+#ecb-banner .amount{font-size:24px;font-weight:700;color:#42a5f5;margin-top:6px}
+#round-indicator{position:fixed;top:80px;left:24px;z-index:10;pointer-events:none}
+#round-indicator .label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#607090}
+#round-indicator .value{font-size:32px;font-weight:700;color:#64b5f6;margin-top:2px}
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+
+<div id="title-bar">
+  <h1>AGORA</h1>
+  <div class="subtitle">Agent-Based Banking Contagion Simulation, 2011 EBA Calibration</div>
+</div>
+
+<div id="round-indicator">
+  <div class="label">Contagion Round</div>
+  <div class="value" id="round-num">Pre-shock</div>
+</div>
+
+<div id="controls">
+  <button id="btn-play">&#9654; Play</button>
+  <button id="btn-reset">Reset</button>
+</div>
+
+<div id="info-panel"></div>
+
+<div id="ecb-banner">
+  ECB Emergency Liquidity Assistance
+  <div class="amount" id="ecb-amount"></div>
+</div>
+
+<div id="hud">
+  <div id="hud-inner">
+    <div class="hud-block">
+      <div class="hud-label">Round</div>
+      <div class="hud-value round" id="hud-round">0</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-label">Cumulative Losses</div>
+      <div class="hud-value loss" id="hud-losses">0 bn EUR</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-label">Banks Stressed</div>
+      <div class="hud-value stressed" id="hud-stressed">0 / 7</div>
+    </div>
+    <div class="hud-block">
+      <div class="hud-label">ECB ELA</div>
+      <div class="hud-value" id="hud-ela" style="color:#42a5f5">0 bn EUR</div>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ── Baked simulation data ──────────────────────────────────────────
+const BANKS = {
+  ECB:   { name:"ECB",            assets:6900, country:"EU", x:0,    y:6,   z:0,   isECB:true },
+  JPM:   { name:"JPMorgan Chase", assets:3550, country:"US", x:8,    y:-1,  z:5,   isECB:false },
+  UBS:   { name:"UBS",            assets:1550, country:"CH", x:-7,   y:0,   z:6,   isECB:false },
+  BNP:   { name:"BNP Paribas",    assets:1465, country:"FR", x:-4,   y:-0.5,z:-3,  isECB:false },
+  DBK:   { name:"Deutsche Bank",  assets:1164, country:"DE", x:3,    y:-0.5,z:-4,  isECB:false },
+  UCG:   { name:"UniCredit",      assets:926,  country:"IT", x:0,    y:-2,  z:-6,  isECB:false },
+  CBK:   { name:"Commerzbank",    assets:538,  country:"DE", x:5.5,  y:-1,  z:-1,  isECB:false },
+  BayLB: { name:"BayernLB",       assets:302,  country:"DE", x:-2,   y:-1.5,z:4,   isECB:false },
+};
+
+const EXPOSURES = [
+  {from:"DBK",to:"BNP",amt:8},{from:"BNP",to:"DBK",amt:6},
+  {from:"DBK",to:"UCG",amt:5},{from:"UCG",to:"DBK",amt:3},
+  {from:"BNP",to:"UCG",amt:7},{from:"UCG",to:"BNP",amt:4},
+  {from:"DBK",to:"CBK",amt:6},{from:"CBK",to:"DBK",amt:3},
+  {from:"BNP",to:"CBK",amt:4},{from:"CBK",to:"UCG",amt:3},
+  {from:"UCG",to:"CBK",amt:2},{from:"CBK",to:"BayLB",amt:5},
+  {from:"DBK",to:"BayLB",amt:10},{from:"BNP",to:"BayLB",amt:8},
+  {from:"UCG",to:"BayLB",amt:4},{from:"BayLB",to:"DBK",amt:2},
+  {from:"UBS",to:"DBK",amt:6},{from:"DBK",to:"UBS",amt:4},
+  {from:"UBS",to:"BNP",amt:5},{from:"BNP",to:"UBS",amt:3},
+  {from:"UBS",to:"UCG",amt:3},
+  {from:"JPM",to:"DBK",amt:12},{from:"JPM",to:"BNP",amt:10},
+  {from:"JPM",to:"UCG",amt:5},{from:"JPM",to:"UBS",amt:15},
+  {from:"UBS",to:"JPM",amt:4},
+  {from:"JPM",to:"DBK",amt:8},{from:"JPM",to:"BNP",amt:6},
+  {from:"JPM",to:"UBS",amt:7},
+  {from:"BNP",to:"DBK",amt:4},{from:"DBK",to:"UCG",amt:3},
+  {from:"DBK",to:"CBK",amt:2}
+];
+
+// Per-round state: status and CET1 for each bank
+// Interpolated from actual simulation: pre-shock through 11 rounds + ECB
+const ROUND_DATA = [
+  // Round 0: pre-shock
+  { label:"Pre-shock",
+    banks:{JPM:{s:"normal",c:15.3},UBS:{s:"normal",c:14.9},BNP:{s:"stressed",c:6.3},DBK:{s:"critical",c:5.3},UCG:{s:"stressed",c:6.4},CBK:{s:"stressed",c:7.5},BayLB:{s:"critical",c:6.2}},
+    cumLoss:0, ela:0 },
+  // Round 1: initial shock hits UCG
+  { label:"Initial shock",
+    banks:{JPM:{s:"normal",c:15.3},UBS:{s:"normal",c:14.9},BNP:{s:"stressed",c:6.1},DBK:{s:"critical",c:5.0},UCG:{s:"critical",c:1.8},CBK:{s:"stressed",c:7.3},BayLB:{s:"critical",c:6.1}},
+    cumLoss:205, ela:0 },
+  // Round 2: counterparty + fire sale
+  { label:"Round 1",
+    banks:{JPM:{s:"normal",c:15.2},UBS:{s:"normal",c:14.6},BNP:{s:"stressed",c:5.7},DBK:{s:"critical",c:4.5},UCG:{s:"critical",c:1.2},CBK:{s:"stressed",c:6.8},BayLB:{s:"critical",c:6.0}},
+    cumLoss:249, ela:0 },
+  // Round 3
+  { label:"Round 2",
+    banks:{JPM:{s:"normal",c:15.1},UBS:{s:"normal",c:14.5},BNP:{s:"stressed",c:5.4},DBK:{s:"critical",c:4.1},UCG:{s:"critical",c:0.9},CBK:{s:"stressed",c:6.4},BayLB:{s:"critical",c:6.0}},
+    cumLoss:275, ela:0 },
+  // Round 4
+  { label:"Round 3",
+    banks:{JPM:{s:"normal",c:15.0},UBS:{s:"normal",c:14.3},BNP:{s:"stressed",c:5.0},DBK:{s:"critical",c:3.7},UCG:{s:"critical",c:0.6},CBK:{s:"stressed",c:5.9},BayLB:{s:"critical",c:5.9}},
+    cumLoss:316, ela:0 },
+  // Round 5
+  { label:"Round 4",
+    banks:{JPM:{s:"normal",c:14.9},UBS:{s:"normal",c:14.2},BNP:{s:"stressed",c:4.7},DBK:{s:"critical",c:3.3},UCG:{s:"critical",c:0.4},CBK:{s:"stressed",c:5.4},BayLB:{s:"critical",c:5.9}},
+    cumLoss:341, ela:0 },
+  // Round 6
+  { label:"Round 5",
+    banks:{JPM:{s:"normal",c:14.9},UBS:{s:"normal",c:14.0},BNP:{s:"stressed",c:4.3},DBK:{s:"critical",c:2.9},UCG:{s:"critical",c:0.2},CBK:{s:"stressed",c:4.9},BayLB:{s:"critical",c:5.8}},
+    cumLoss:380, ela:0 },
+  // Round 7
+  { label:"Round 6",
+    banks:{JPM:{s:"normal",c:14.8},UBS:{s:"normal",c:13.8},BNP:{s:"critical",c:3.9},DBK:{s:"critical",c:2.5},UCG:{s:"critical",c:0.1},CBK:{s:"stressed",c:4.5},BayLB:{s:"critical",c:5.8}},
+    cumLoss:405, ela:0 },
+  // Round 8
+  { label:"Round 7",
+    banks:{JPM:{s:"normal",c:14.7},UBS:{s:"normal",c:13.6},BNP:{s:"critical",c:3.6},DBK:{s:"critical",c:2.0},UCG:{s:"critical",c:0.0},CBK:{s:"stressed",c:4.1},BayLB:{s:"critical",c:5.8}},
+    cumLoss:444, ela:0 },
+  // Round 9
+  { label:"Round 8",
+    banks:{JPM:{s:"normal",c:14.7},UBS:{s:"normal",c:13.5},BNP:{s:"critical",c:3.4},DBK:{s:"critical",c:1.7},UCG:{s:"critical",c:0.0},CBK:{s:"critical",c:3.8},BayLB:{s:"stressed",c:5.8}},
+    cumLoss:468, ela:0 },
+  // Round 10
+  { label:"Round 9",
+    banks:{JPM:{s:"normal",c:14.7},UBS:{s:"normal",c:13.4},BNP:{s:"critical",c:3.3},DBK:{s:"critical",c:1.5},UCG:{s:"critical",c:0.0},CBK:{s:"critical",c:3.7},BayLB:{s:"stressed",c:5.8}},
+    cumLoss:506, ela:0 },
+  // Round 11
+  { label:"Round 10",
+    banks:{JPM:{s:"normal",c:14.6},UBS:{s:"normal",c:13.3},BNP:{s:"critical",c:3.2},DBK:{s:"critical",c:1.4},UCG:{s:"critical",c:0.0},CBK:{s:"critical",c:3.6},BayLB:{s:"stressed",c:5.8}},
+    cumLoss:531, ela:0 },
+  // Round 12: ECB intervention
+  { label:"ECB Intervention",
+    banks:{JPM:{s:"normal",c:14.6},UBS:{s:"normal",c:13.3},BNP:{s:"critical",c:3.2},DBK:{s:"critical",c:1.4},UCG:{s:"critical",c:0.0},CBK:{s:"critical",c:3.6},BayLB:{s:"stressed",c:5.8}},
+    cumLoss:531, ela:224,
+    ecbTargets:["DBK","BNP","CBK","BayLB","UBS"] },
+];
+
+// ── Colors ──────────────────────────────────────────────────────────
+const STATUS_COLORS = {
+  normal:   new THREE.Color(0x4caf50),
+  stressed: new THREE.Color(0xff9800),
+  critical: new THREE.Color(0xf44336),
+};
+const ECB_COLOR = new THREE.Color(0x42a5f5);
+const EDGE_COLOR = new THREE.Color(0x2a3a5a);
+const ECB_LINE_COLOR = new THREE.Color(0x42a5f5);
+
+// ── Three.js setup ──────────────────────────────────────────────────
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0a0a1a, 0.025);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(12, 8, 16);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+container.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(window.innerWidth, window.innerHeight);
+labelRenderer.domElement.style.position = 'absolute';
+labelRenderer.domElement.style.top = '0';
+labelRenderer.domElement.style.pointerEvents = 'none';
+container.appendChild(labelRenderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.4;
+controls.minDistance = 8;
+controls.maxDistance = 40;
+controls.target.set(0, 0, 0);
+
+// Lighting
+scene.add(new THREE.AmbientLight(0x404060, 0.6));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(10, 15, 10);
+scene.add(dirLight);
+const pointLight = new THREE.PointLight(0x4080ff, 0.5, 30);
+pointLight.position.set(0, 8, 0);
+scene.add(pointLight);
+
+// ── Build bank spheres ──────────────────────────────────────────────
+const bankMeshes = {};
+const bankLabels = {};
+const bankGlows = {};
+
+for (const [id, bank] of Object.entries(BANKS)) {
+  const radius = bank.isECB
+    ? 0.7
+    : 0.25 + Math.sqrt(bank.assets / 3550) * 0.7;
+
+  const geo = new THREE.SphereGeometry(radius, 32, 32);
+  const mat = new THREE.MeshStandardMaterial({
+    color: bank.isECB ? ECB_COLOR : STATUS_COLORS.normal,
+    emissive: bank.isECB ? ECB_COLOR : STATUS_COLORS.normal,
+    emissiveIntensity: bank.isECB ? 0.4 : 0.2,
+    metalness: 0.3,
+    roughness: 0.6,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(bank.x, bank.y, bank.z);
+  scene.add(mesh);
+  bankMeshes[id] = mesh;
+
+  // Glow
+  const glowGeo = new THREE.SphereGeometry(radius * 1.6, 32, 32);
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: bank.isECB ? ECB_COLOR : STATUS_COLORS.normal,
+    transparent: true,
+    opacity: 0.08,
+    side: THREE.BackSide,
+  });
+  const glow = new THREE.Mesh(glowGeo, glowMat);
+  mesh.add(glow);
+  bankGlows[id] = glow;
+
+  // Label
+  const labelDiv = document.createElement('div');
+  labelDiv.style.cssText = 'font-size:11px;color:#b0c4de;font-family:inherit;text-align:center;pointer-events:none;text-shadow:0 0 6px rgba(0,0,0,0.8)';
+  labelDiv.innerHTML = bank.isECB
+    ? '<b style="color:#42a5f5">ECB</b>'
+    : `<b>${id}</b><br><span class="cet1-label" style="font-size:10px;opacity:0.7"></span>`;
+  const label = new CSS2DObject(labelDiv);
+  label.position.set(0, radius + 0.4, 0);
+  mesh.add(label);
+  bankLabels[id] = labelDiv;
+}
+
+// ── Build interbank edges ───────────────────────────────────────────
+const edgeMeshes = [];
+for (const exp of EXPOSURES) {
+  const fromBank = BANKS[exp.from];
+  const toBank = BANKS[exp.to];
+  if (!fromBank || !toBank) continue;
+
+  const from = new THREE.Vector3(fromBank.x, fromBank.y, fromBank.z);
+  const to = new THREE.Vector3(toBank.x, toBank.y, toBank.z);
+  const geo = new THREE.BufferGeometry().setFromPoints([from, to]);
+  const mat = new THREE.LineBasicMaterial({
+    color: EDGE_COLOR,
+    transparent: true,
+    opacity: 0.15 + (exp.amt / 15) * 0.25,
+    linewidth: 1,
+  });
+  const line = new THREE.Line(geo, mat);
+  scene.add(line);
+  edgeMeshes.push(line);
+}
+
+// ── ECB intervention lines (hidden initially) ───────────────────────
+const ecbLines = {};
+for (const id of Object.keys(BANKS)) {
+  if (id === 'ECB' || BANKS[id].isECB) continue;
+  const ecb = BANKS.ECB;
+  const bank = BANKS[id];
+  const points = [];
+  const segments = 40;
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const x = ecb.x + (bank.x - ecb.x) * t;
+    const z = ecb.z + (bank.z - ecb.z) * t;
+    const y = ecb.y + (bank.y - ecb.y) * t + Math.sin(t * Math.PI) * 2;
+    points.push(new THREE.Vector3(x, y, z));
+  }
+  const geo = new THREE.BufferGeometry().setFromPoints(points);
+  const mat = new THREE.LineBasicMaterial({
+    color: ECB_LINE_COLOR,
+    transparent: true,
+    opacity: 0,
+    linewidth: 2,
+  });
+  const line = new THREE.Line(geo, mat);
+  scene.add(line);
+  ecbLines[id] = { line, mat };
+}
+
+// ── State ───────────────────────────────────────────────────────────
+let currentRound = 0;
+let isPlaying = false;
+let playTimer = null;
+let ecbPulsePhase = 0;
+let ecbActive = false;
+
+function updateToRound(roundIdx) {
+  currentRound = roundIdx;
+  const data = ROUND_DATA[roundIdx];
+  if (!data) return;
+
+  // Update round indicator
+  document.getElementById('round-num').textContent = data.label;
+  document.getElementById('hud-round').textContent =
+    roundIdx === 0 ? '0' : roundIdx <= 11 ? String(roundIdx - 1) : '11';
+  document.getElementById('hud-losses').textContent = data.cumLoss + ' bn EUR';
+
+  let stressedCount = 0;
+  const infoPanel = document.getElementById('info-panel');
+  infoPanel.innerHTML = '';
+
+  for (const [id, bdata] of Object.entries(data.banks)) {
+    const mesh = bankMeshes[id];
+    const glow = bankGlows[id];
+    if (!mesh) continue;
+
+    const color = STATUS_COLORS[bdata.s] || STATUS_COLORS.normal;
+    mesh.material.color.copy(color);
+    mesh.material.emissive.copy(color);
+    mesh.material.emissiveIntensity = bdata.s === 'critical' ? 0.4 : 0.2;
+    glow.material.color.copy(color);
+    glow.material.opacity = bdata.s === 'critical' ? 0.15 : 0.08;
+
+    if (bdata.s !== 'normal') stressedCount++;
+
+    // Label
+    const label = bankLabels[id];
+    if (label) {
+      const cet1Span = label.querySelector('.cet1-label');
+      if (cet1Span) cet1Span.textContent = 'CET1 ' + bdata.c.toFixed(1) + '%';
+    }
+
+    // Info panel
+    const isEcbTarget = data.ecbTargets && data.ecbTargets.includes(id);
+    const div = document.createElement('div');
+    div.className = 'bank-info ' + bdata.s + (isEcbTarget ? ' ecb-active' : '');
+    div.innerHTML = `<span class="name">${id}</span>` +
+      `<span class="cet1" style="color:${bdata.s === 'normal' ? '#4caf50' : bdata.s === 'stressed' ? '#ff9800' : '#f44336'}">` +
+      `${bdata.c.toFixed(1)}%</span>`;
+    infoPanel.appendChild(div);
+  }
+
+  document.getElementById('hud-stressed').textContent = stressedCount + ' / 7';
+  document.getElementById('hud-ela').textContent = data.ela + ' bn EUR';
+
+  // ECB intervention
+  ecbActive = !!(data.ecbTargets && data.ecbTargets.length > 0);
+  const banner = document.getElementById('ecb-banner');
+  if (ecbActive) {
+    banner.style.display = 'block';
+    document.getElementById('ecb-amount').textContent = data.ela + ' bn EUR';
+    for (const [id, obj] of Object.entries(ecbLines)) {
+      obj.mat.opacity = data.ecbTargets.includes(id) ? 0.6 : 0;
+    }
+    // Pulse ECB sphere
+    bankMeshes.ECB.material.emissiveIntensity = 0.8;
+  } else {
+    banner.style.display = 'none';
+    for (const obj of Object.values(ecbLines)) obj.mat.opacity = 0;
+    bankMeshes.ECB.material.emissiveIntensity = 0.4;
+  }
+}
+
+function stepForward() {
+  if (currentRound < ROUND_DATA.length - 1) {
+    updateToRound(currentRound + 1);
+  } else {
+    stopPlaying();
+  }
+}
+
+function startPlaying() {
+  isPlaying = true;
+  document.getElementById('btn-play').classList.add('active');
+  document.getElementById('btn-play').innerHTML = '&#10074;&#10074; Pause';
+  playTimer = setInterval(stepForward, 1500);
+}
+
+function stopPlaying() {
+  isPlaying = false;
+  document.getElementById('btn-play').classList.remove('active');
+  document.getElementById('btn-play').innerHTML = '&#9654; Play';
+  if (playTimer) { clearInterval(playTimer); playTimer = null; }
+}
+
+document.getElementById('btn-play').addEventListener('click', () => {
+  if (isPlaying) stopPlaying();
+  else {
+    if (currentRound >= ROUND_DATA.length - 1) updateToRound(0);
+    startPlaying();
+  }
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  stopPlaying();
+  updateToRound(0);
+});
+
+// ── Particles (ambient) ─────────────────────────────────────────────
+const particleCount = 200;
+const particleGeo = new THREE.BufferGeometry();
+const positions = new Float32Array(particleCount * 3);
+for (let i = 0; i < particleCount; i++) {
+  positions[i*3]   = (Math.random() - 0.5) * 40;
+  positions[i*3+1] = (Math.random() - 0.5) * 20;
+  positions[i*3+2] = (Math.random() - 0.5) * 40;
+}
+particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+const particleMat = new THREE.PointsMaterial({ color: 0x304060, size: 0.05, transparent: true, opacity: 0.4 });
+scene.add(new THREE.Points(particleGeo, particleMat));
+
+// ── Animation loop ──────────────────────────────────────────────────
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  controls.update();
+
+  // Gentle bob on bank spheres
+  for (const [id, mesh] of Object.entries(bankMeshes)) {
+    if (id === 'ECB') {
+      mesh.position.y = BANKS[id].y + Math.sin(t * 0.8) * 0.15;
+    } else {
+      mesh.position.y = BANKS[id].y + Math.sin(t * 0.5 + BANKS[id].x) * 0.08;
+    }
+  }
+
+  // ECB pulse
+  if (ecbActive) {
+    ecbPulsePhase += 0.03;
+    const pulse = 0.3 + Math.sin(ecbPulsePhase * 3) * 0.3;
+    for (const [id, obj] of Object.entries(ecbLines)) {
+      const data = ROUND_DATA[currentRound];
+      if (data && data.ecbTargets && data.ecbTargets.includes(id)) {
+        obj.mat.opacity = pulse;
+      }
+    }
+    bankMeshes.ECB.material.emissiveIntensity = 0.4 + Math.sin(ecbPulsePhase * 3) * 0.4;
+    bankGlows.ECB.material.opacity = 0.1 + Math.sin(ecbPulsePhase * 3) * 0.1;
+  }
+
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+}
+
+// ── Resize ──────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  labelRenderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ── Init ────────────────────────────────────────────────────────────
+updateToRound(0);
+animate();
+</script>
+</body>
+</html>

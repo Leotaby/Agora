@@ -1,57 +1,83 @@
-# AGORA
-
-**Agent-based contagion simulation in European interbank networks**
-
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Vue 3](https://img.shields.io/badge/Vue-3.4-4FC08D?style=flat-square&logo=vuedotjs&logoColor=white)](https://vuejs.org)
+[![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?style=flat-square&logo=cplusplus&logoColor=white)](https://isocpp.org)
+[![OpenGL](https://img.shields.io/badge/OpenGL-4.1-5586A4?style=flat-square&logo=opengl&logoColor=white)](https://www.opengl.org)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-purple?style=flat-square)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/Leotaby/Agora/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/Leotaby/Agora/actions)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue?style=flat-square)](https://leotaby.github.io/Agora)
 
----
+# AGORA - Agent-Based Banking Stability Simulator
 
-<p align="center">
-  <img src="docs/screenshot.svg" alt="AGORA simulation output" width="800">
-</p>
+Agent-based simulation of systemic risk and contagion in European interbank networks.
 
-AGORA models how a localized banking shock propagates through a cross-Atlantic interbank network to produce systemic crisis. Seven banks are represented as fully specified balance sheets (assets, liabilities, capital, liquidity buffers) connected by directed overnight and term lending relationships. Contagion transmits through five channels until either equilibrium or central bank intervention. The project grew out of MSc thesis work on Eurozone bank stability at Federico II di Napoli and is being developed toward a PhD application.
+## Scientific question
 
-**Scientific question.** Under what conditions does the failure of a single nationally important bank cascade into a system-wide crisis requiring central bank intervention, and how do cross-border dollar funding dependencies amplify European contagion?
+How do solvency and liquidity shocks propagate through interbank networks? When does central bank intervention prevent systemic collapse, and by how much? These are the questions that reduced-form panel econometrics cannot answer, because they require a structural model with explicit network topology, heterogeneous bank balance sheets, and endogenous feedback loops between asset prices, funding markets, and capital adequacy.
 
-## Key result
+## Motivation
 
-Italian sovereign crisis scenario: 15% BTP haircut, 40% corporate deposit run, 50% wholesale funding freeze on UniCredit, with JPMorgan restricting dollar repo to all European counterparties and UBS marking down European sovereign holdings.
+My MSc thesis at Federico II di Napoli estimated macro-financial feedback effects across the EA-20 from 2000 to 2022 using two-way fixed effects and System-GMM on a panel of 20 eurozone economies. One core finding was that a 1 percentage point rise in unemployment causes a 1.25pp increase in non-performing loan ratios, with a multiplier that varies significantly across core and periphery countries. AGORA asks the follow-up question: what happens when those NPL losses concentrate in a single nationally important bank and cascade through the interbank network? The thesis gave the elasticity. This simulator gives the propagation mechanism.
 
-| Bank | Country | Assets (bn EUR) | Pre-shock CET1 | Pre-shock LCR | Post-shock outcome |
-|------|---------|-----------------|----------------|---------------|--------------------|
-| JPMorgan Chase | US | 3,550 | 15.3% | 188% | Survived unaided |
-| BNP Paribas | FR | 1,698 | 9.0% | 103% | ECB support, 80bn ELA |
-| UBS | CH | 1,550 | 14.9% | 100% | Survived unaided |
-| Deutsche Bank | DE | 1,117 | 7.3% | 87% | ECB support, 75bn ELA |
-| UniCredit | IT | 884 | 11.3% | 147% | Capital wiped to 0% CET1 |
-| Commerzbank | DE | 501 | 8.3% | 92% | ECB support, 61bn ELA |
-| BayernLB | DE | 234 | 6.6% | 54% | ECB support, 31bn ELA |
+## Counterfactual result: ECB lender of last resort (2011 Italian sovereign crisis)
 
-Total system losses: 520bn EUR across 264 contagion events over 10 rounds. Five of seven banks required emergency liquidity assistance. The dollar funding channel (JPMorgan restricting secured repo to European banks) amplified the crisis by draining 38bn EUR from European bank reserves in the initial shock alone.
+Scenario: 8% loan writedown, 15% BTP haircut, 40% corporate deposit run, and 50% wholesale funding freeze on UniCredit, with JPMorgan restricting dollar repo to all European counterparties and UBS marking down European sovereign holdings.
+
+|                         | With ECB       | Without ECB    | Delta           |
+|-------------------------|----------------|----------------|-----------------|
+| Total system losses     | 531 bn EUR     | 815 bn EUR     | +284 bn EUR     |
+| Contagion rounds        | 11             | 20             | +9              |
+| Banks at CET1 ~ 0%     | 1 (UCG)        | 4 (DBK, BNP, UCG, CBK) | +3     |
+| ECB ELA deployed        | 224 bn EUR     | 0              | -224 bn EUR     |
+
+The ECB's lender-of-last-resort function prevented 3 additional bank failures and 284 bn EUR in system losses by breaking the confidence-fire sale feedback loop.
 
 ## Contagion channels
 
 1. **Counterparty losses.** Banks that lent to stressed or failed banks take direct write-downs on interbank exposure, proportional to the borrower's probability of default.
-2. **Liquidity withdrawal.** Wholesale funding markets freeze for banks connected to stressed counterparties. Guilt-by-association causes repo and commercial paper markets to close.
-3. **Fire sales.** Stressed banks dump sovereign bonds to rebuild LCR buffers. Forced selling depresses prices, causing mark-to-market losses across all banks holding the same assets.
-4. **Confidence contagion.** CDS spreads from stressed banks infect connected neighbors. Wider spreads raise funding costs and push marginal banks toward insolvency.
-5. **Dollar funding freeze.** JPMorgan restricts secured dollar repo lines to all European borrowers when sovereign risk spikes. European banks that depend on dollar funding lose reserves immediately.
+2. **Liquidity withdrawal.** Wholesale funding markets freeze for banks connected to stressed counterparties, as guilt-by-association causes repo and commercial paper investors to pull back.
+3. **Fire sales.** Stressed banks dump sovereign bonds to rebuild LCR buffers, and the forced selling depresses prices, causing mark-to-market losses across all banks holding the same asset class.
+4. **Confidence contagion.** CDS spreads from stressed banks infect connected neighbours through the interbank graph, raising funding costs and pushing marginal banks toward insolvency.
+5. **Dollar funding freeze.** JPMorgan restricts secured dollar repo lines to all European borrowers when sovereign risk spikes, draining reserves from banks that depend on cross-border dollar funding.
 
-## Simulation output
+## Data calibration (2011)
 
-The default scenario is an Italian sovereign crisis. UniCredit takes a 15% BTP haircut, loses 40% of corporate deposits and 50% of wholesale funding. JPMorgan restricts dollar repo to all European counterparties. UBS marks down its European sovereign bond portfolio. The contagion engine then propagates losses through the interbank network across 5 channels for 8 rounds until the ECB intervenes.
+The five eurozone banks are calibrated to real published data from Q4 2011, not synthetic parameters. Sources:
 
-Results from the 7-bank network:
+- Deutsche Bank Financial Report 2011
+- BNP Paribas Annual Report 2011
+- UniCredit Annual Report 2011
+- Commerzbank Annual Report 2011
+- BayernLB Annual Report 2011
+- EBA Capital Exercise December 2011
+- BIS Consolidated Banking Statistics Q4 2011
 
-- Total system losses: 439.8bn EUR
-- UniCredit capital wiped to 0% CET1
-- JPMorgan and UBS survived unaided
-- Five European banks (Deutsche Bank, BNP Paribas, Commerzbank, UniCredit, BayernLB) required ECB emergency liquidity assistance totaling 528.8bn EUR
-- 8 rounds of contagion across counterparty, liquidity, fire sale, confidence, and dollar funding channels before equilibrium
+UBS and JPMorgan retain synthetic balance sheets (they were not part of the EBA exercise).
+
+## Bank network
+
+| Bank           | Country | Assets (bn EUR) | CET1 (2011) | LCR (2011) | Italian sov. (bn EUR) | Post-shock outcome         |
+|----------------|---------|------------------|-------------|------------|-----------------------|----------------------------|
+| JPMorgan Chase | US      | 3,550            | 15.3%       | 187.9%     | 0.0                   | Survived unaided           |
+| UBS            | CH      | 1,550            | 14.9%       | 100.3%     | 0.0                   | Survived unaided           |
+| BNP Paribas    | FR      | 1,465            | 6.3%        | 63.3%      | 21.3                  | Critical, ECB ELA required |
+| Deutsche Bank  | DE      | 1,164            | 5.3%        | 55.0%      | 8.1                   | Critical, ECB ELA required |
+| UniCredit      | IT      | 926              | 6.4%        | 128.5%     | 47.0                  | CET1 wiped to 0%          |
+| Commerzbank    | DE      | 538              | 7.5%        | 77.3%      | 10.2                  | Critical, ECB ELA required |
+| BayernLB       | DE      | 302              | 6.2%        | 50.9%      | 2.5                   | Stressed, ECB ELA required |
+
+## Architecture
+
+```
+backend/          Python contagion engine, bank models, FastAPI server
+  app/models/     Bank balance sheets, interbank network graph, calibration data
+  app/services/   Five-channel contagion propagation with ECB intervention logic
+  app/api/        REST endpoints for per-round simulation snapshots
+  scripts/        Standalone simulation runner with counterfactual experiment
+frontend/         Vue 3 + D3 interactive dashboard for network visualization
+visualizer/       C++17/OpenGL native 3D renderer for the contagion cascade
+docs/             GitHub Pages site with Three.js 3D demo
+```
 
 ## Quick start
 
@@ -61,37 +87,21 @@ python scripts/run_banking_sim.py
 uv run python run.py
 ```
 
-## Architecture
-
-```
-backend/
-  app/
-    models/
-      bank.py                 # Balance sheets, capital, liquidity, 7 preset banks
-      interbank_network.py    # Directed weighted lending graph, network queries
-      shock.py                # Macro shock definitions
-    services/
-      contagion_engine.py     # Five-channel contagion propagation + ECB intervention
-    api/
-      banking_routes.py       # Simulation API (per-round snapshots for frontend replay)
-      routes.py               # Health check, network graph endpoint
-frontend/
-  src/views/
-    BankingView.vue           # D3 force-directed network graph, contagion timeline
-```
-
-## Target publications
+## Research agenda
 
 | # | Working title | Target journal |
 |---|--------------|----------------|
-| P1 | Systemic risk transmission in heterogeneous banking networks: an agent-based approach | Journal of Financial Stability |
-| P2 | Cross-border dollar funding and European contagion amplification | Journal of Money, Credit and Banking |
-| P3 | Central bank intervention thresholds in simulated banking crises | Journal of Banking and Finance |
+| 1 | Endogenous contagion and central bank intervention in European interbank networks | Journal of Financial Stability |
+| 2 | Calibrating agent-based banking models to supervisory data | Journal of Banking and Finance |
+| 3 | Counterfactual OMT: what if Draghi had not acted | Journal of International Money and Finance |
+
+## Connection to MSc thesis
+
+The macro-financial elasticities estimated in the MSc thesis provide the exogenous shock calibration for this simulator. The thesis repo is at [github.com/Leotaby/macro-panel-thesis](https://github.com/Leotaby/macro-panel-thesis).
 
 ## Author
 
 Hatef Tabbakhian (Leo)
-  
 MSc Economics and Finance, Universita Federico II di Napoli
 
 ## License

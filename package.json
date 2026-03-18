@@ -2,6 +2,7 @@
   "name": "agora",
   "version": "0.1.0",
   "description": "Agent-based contagion simulation in European interbank networks",
+  "homepage": "https://leotaby.github.io/Agora",
   "scripts": {
     "dev": "concurrently --kill-others -n \"backend,frontend\" -c \"green,cyan\" \"npm run backend\" \"npm run frontend\"",
     "backend": "cd backend && uv run python run.py",
