@@ -113,6 +113,8 @@ class ContagionEngine:
         self.confidence_decay_rate: float = 0.5       # how fast spreads infect neighbors
         self.max_contagion_rounds: int = 10            # circuit breaker
         self.recovery_rate_on_failure: float = 0.40    # 40 cents on the dollar in resolution
+        self.lgd_critical_pct: float = 0.20            # loss given default for critical banks
+        self.lgd_stressed_pct: float = 0.05            # loss given default for stressed banks
 
     def initialize(self) -> None:
         """Build all preset banks and wire the interbank network."""
@@ -466,9 +468,9 @@ class ContagionEngine:
             if borrower.status == BankStatus.FAILED:
                 loss = exp.amount_eur_bn * (1 - self.recovery_rate_on_failure)
             elif borrower.status == BankStatus.CRITICAL:
-                loss = exp.amount_eur_bn * 0.20  # 20% expected loss
+                loss = exp.amount_eur_bn * self.lgd_critical_pct
             elif borrower.status == BankStatus.STRESSED:
-                loss = exp.amount_eur_bn * 0.05  # 5% provision
+                loss = exp.amount_eur_bn * self.lgd_stressed_pct
             else:
                 continue
 
