@@ -75,6 +75,21 @@ body{background:var(--bg);color:var(--green);font-family:'Courier New',Courier,m
 #title h1{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:rgba(0,255,65,0.4);font-weight:400}
 #title .sub{font-size:9px;color:rgba(0,255,65,0.2);margin-top:2px}
 
+/* Narrative box - center top */
+#narrative{position:absolute;top:40px;left:50%;transform:translateX(-50%);z-index:25;
+  background:rgba(0,0,0,0.88);border:1px solid rgba(0,255,65,0.25);padding:12px 28px;
+  font-size:14px;color:#ffffff;text-align:center;pointer-events:none;max-width:600px;
+  line-height:1.5;border-radius:3px;opacity:0;transition:opacity 0.3s}
+#narrative.show{opacity:1}
+#narrative .tag{font-size:10px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:700}
+#narrative .tag.shock{color:var(--red)}
+#narrative .tag.contagion{color:var(--orange)}
+#narrative .tag.liquidity{color:var(--cyan)}
+#narrative .tag.dollar{color:var(--cyan)}
+#narrative .tag.firesale{color:var(--orange)}
+#narrative .tag.ecb{color:var(--blue)}
+#narrative .tag.system{color:var(--green)}
+
 /* ECB banner */
 #ecb-banner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:30;
   background:rgba(0,10,40,0.95);border:1px solid var(--blue);padding:16px 32px;
@@ -122,6 +137,7 @@ body{background:var(--bg);color:var(--green);font-family:'Courier New',Courier,m
     <h1>AGORA</h1>
     <div class="sub">2011 EBA CALIBRATION</div>
   </div>
+  <div id="narrative"></div>
   <div id="ecb-banner">
     ECB EMERGENCY LIQUIDITY ASSISTANCE
     <div class="amt" id="ecb-amt"></div>
@@ -154,16 +170,16 @@ import {CSS2DRenderer, CSS2DObject} from 'three/addons/renderers/CSS2DRenderer.j
 /* ================================================================
    BAKED SIMULATION DATA
    ================================================================ */
-// Banks on circle radius=6 in XZ, ECB at top y=4
+// Banks on circle radius=9, ECB at top y=5
 const BANKS = {
-  ECB:   {name:"ECB",             assets:6900, country:"EU", x:0,    y:4,    z:0,    ecb:true},
-  JPM:   {name:"JPMORGAN",       assets:3550, country:"US", x:6,    y:0,    z:0},
-  UBS:   {name:"UBS",             assets:1550, country:"CH", x:4.2,  y:0,    z:4.2},
-  BNP:   {name:"BNP PARIBAS",    assets:1698, country:"FR", x:0,    y:0,    z:6},
-  DBK:   {name:"DEUTSCHE BK",    assets:1117, country:"DE", x:-4.2, y:0,    z:4.2},
-  UCG:   {name:"UNICREDIT",      assets:884,  country:"IT", x:-6,   y:0,    z:0},
-  CBK:   {name:"COMMERZBANK",    assets:501,  country:"DE", x:-4.2, y:0,    z:-4.2},
-  BayLB: {name:"BAYERNLB",       assets:234,  country:"DE", x:0,    y:0,    z:-6},
+  ECB:   {name:"ECB",           assets:6900, country:"EU", x:0,    y:5,   z:0,   ecb:true},
+  JPM:   {name:"JPMORGAN",     assets:3550, country:"US", x:9,    y:0,   z:0},
+  UBS:   {name:"UBS",           assets:1550, country:"CH", x:5.6,  y:0,   z:7.0},
+  BNP:   {name:"BNP PARIBAS",  assets:1698, country:"FR", x:-2.0, y:0,   z:8.8},
+  DBK:   {name:"DEUTSCHE BK",  assets:1117, country:"DE", x:-8.1, y:0,   z:3.9},
+  UCG:   {name:"UNICREDIT",    assets:884,  country:"IT", x:-8.1, y:0,   z:-3.9},
+  CBK:   {name:"COMMERZBANK",  assets:501,  country:"DE", x:-2.0, y:0,   z:-8.8},
+  BayLB: {name:"BAYERNLB",     assets:234,  country:"DE", x:5.6,  y:0,   z:-7.0},
 };
 const BANK_ORDER = ["JPM","UBS","BNP","DBK","UCG","CBK","BayLB"];
 
@@ -214,247 +230,216 @@ const EVENTS = [
 ];
 
 /* ================================================================
-   COLORS - per-bank source colors for edges
+   FLAT STORY: every event in sequence, with plain English narrative
+   Each event: tag, text, from/to (edge), round index (for bank state)
+   term = terminal feed line
    ================================================================ */
-const C_GREEN  = new THREE.Color(0x00ff41);
-const C_ORANGE = new THREE.Color(0xff6b00);
-const C_RED    = new THREE.Color(0xff0040);
-const C_BLUE   = new THREE.Color(0x0088ff);
-const C_WHITE  = new THREE.Color(0xffffff);
-const STATUS_C = {normal:C_GREEN, stressed:C_ORANGE, critical:C_RED};
-const BANK_COLORS = {
-  ECB:  new THREE.Color(0x0088ff),
-  JPM:  new THREE.Color(0x00ffff),
-  UBS:  new THREE.Color(0x00ff41),
-  DBK:  new THREE.Color(0xffff00),
-  BNP:  new THREE.Color(0xff00ff),
-  UCG:  new THREE.Color(0xff6b00),
-  CBK:  new THREE.Color(0xff0040),
-  BayLB:new THREE.Color(0xaa00ff),
-};
+const STORY = [
+  {tag:"system",    text:"All 7 banks operating normally. CET1 ratios from 6.6% to 14.9%.", ri:0, term:"[SYS] ALL SYSTEMS NOMINAL"},
+  {tag:"shock",     text:"SHOCK: Italian sovereign bonds crash. UniCredit writes down 44.7bn EUR in loans.", ri:1, from:"UCG", term:"[SOLV] UCG :: LOANS -8.0% :: -44.7 BN"},
+  {tag:"shock",     text:"SHOCK: UniCredit sovereign bond portfolio haircut 15%, losing 11.7bn EUR.", ri:1, from:"UCG", term:"[SOLV] UCG :: SOVEREIGN -15% :: -11.7 BN"},
+  {tag:"liquidity", text:"LIQUIDITY CRISIS: 49bn EUR in wholesale funding refuses to roll over for UniCredit.", ri:1, from:"UCG", term:"[LIQ]  UCG :: WHOLESALE -50% :: -49.0 BN"},
+  {tag:"shock",     text:"BANK RUN: Corporate depositors pull 58bn EUR from UniCredit on BTP fears.", ri:1, from:"UCG", term:"[LIQ]  UCG :: DEPOSIT RUN -40% :: -58.0 BN"},
+  {tag:"dollar",    text:"DOLLAR FUNDING: JPMorgan restricts repo to Deutsche Bank: -7.2bn EUR", ri:1, from:"JPM", to:"DBK", term:"[LIQ]  JPM -> DBK :: REPO -60% :: -7.2 BN"},
+  {tag:"dollar",    text:"DOLLAR FUNDING: JPMorgan restricts repo to BNP Paribas: -6.0bn EUR", ri:1, from:"JPM", to:"BNP", term:"[LIQ]  JPM -> BNP :: REPO -60% :: -6.0 BN"},
+  {tag:"dollar",    text:"DOLLAR FUNDING: JPMorgan restricts repo to UBS: -9.0bn EUR", ri:1, from:"JPM", to:"UBS", term:"[LIQ]  JPM -> UBS :: REPO -60% :: -9.0 BN"},
+  {tag:"contagion", text:"MARK-TO-MARKET: UBS writes down European sovereign bond holdings: -4.0bn EUR", ri:1, from:"UBS", term:"[SOLV] UBS :: SOVEREIGN MTM -5% :: -4.0 BN"},
+  {tag:"contagion", text:"CONTAGION: BNP Paribas takes counterparty loss on Deutsche Bank exposure: -1.2bn EUR", ri:2, from:"DBK", to:"BNP", term:"[CTPY] BNP <- DBK :: -1.2 BN"},
+  {tag:"contagion", text:"CONTAGION: Deutsche Bank takes counterparty loss on UniCredit: -1.0bn EUR", ri:2, from:"UCG", to:"DBK", term:"[CTPY] DBK <- UCG :: -1.0 BN"},
+  {tag:"contagion", text:"CONTAGION: BNP Paribas takes counterparty loss on UniCredit: -1.4bn EUR", ri:2, from:"UCG", to:"BNP", term:"[CTPY] BNP <- UCG :: -1.4 BN"},
+  {tag:"liquidity", text:"FUNDING FREEZE: Commerzbank loses 7.8bn EUR as wholesale market closes.", ri:2, from:"CBK", term:"[LIQ]  CBK :: WHOLESALE -7.5% :: -7.8 BN"},
+  {tag:"liquidity", text:"FUNDING FREEZE: BayernLB loses 14.0bn EUR in wholesale funding.", ri:2, from:"BayLB", term:"[LIQ]  BAYLB :: WHOLESALE -16% :: -14.0 BN"},
+  {tag:"contagion", text:"CONTAGION: Deutsche Bank hit by BayernLB counterparty loss: -2.0bn EUR", ri:3, from:"BayLB", to:"DBK", term:"[CTPY] DBK <- BAYLB :: -2.0 BN"},
+  {tag:"contagion", text:"CONTAGION: BNP Paribas hit by BayernLB counterparty loss: -1.6bn EUR", ri:3, from:"BayLB", to:"BNP", term:"[CTPY] BNP <- BAYLB :: -1.6 BN"},
+  {tag:"liquidity", text:"FUNDING DRAIN: Deutsche Bank loses 12.8bn EUR as wholesale funding contracts.", ri:3, from:"DBK", term:"[LIQ]  DBK :: WHOLESALE -4.0% :: -12.8 BN"},
+  {tag:"contagion", text:"CONTAGION: UBS takes counterparty loss on Deutsche Bank: -1.2bn EUR", ri:4, from:"DBK", to:"UBS", term:"[CTPY] UBS <- DBK :: -1.2 BN"},
+  {tag:"firesale",  text:"FIRE SALE: Stressed banks dump sovereign bonds. Market prices drop 0.3%.", ri:4, term:"[FIRE] SOVEREIGN BONDS MTM -0.3%"},
+  {tag:"contagion", text:"Deutsche Bank CET1 falls below 4.5%. Status: CRITICAL.", ri:5, from:"DBK", term:"[WARN] DBK CET1 BELOW 4.5% :: CRITICAL"},
+  {tag:"contagion", text:"CONTAGION: BNP Paribas takes further counterparty loss on Deutsche Bank: -1.2bn EUR", ri:6, from:"DBK", to:"BNP", term:"[CTPY] BNP <- DBK :: -1.2 BN"},
+  {tag:"contagion", text:"CONTAGION: UBS takes loss on BNP Paribas exposure: -1.0bn EUR", ri:7, from:"BNP", to:"UBS", term:"[CTPY] UBS <- BNP :: -1.0 BN"},
+  {tag:"contagion", text:"BNP Paribas CET1 falls below 4.5%. Status: CRITICAL.", ri:7, from:"BNP", term:"[WARN] BNP CET1 BELOW 4.5% :: CRITICAL"},
+  {tag:"contagion", text:"Commerzbank CET1 falls below 4.5%. Status: CRITICAL.", ri:8, from:"CBK", term:"[WARN] CBK CET1 BELOW 4.5% :: CRITICAL"},
+  {tag:"liquidity", text:"FUNDING DRAIN: Deutsche Bank wholesale funding contracts another 11.7bn EUR.", ri:8, from:"DBK", term:"[LIQ]  DBK :: WHOLESALE -4.1% :: -11.7 BN"},
+  {tag:"contagion", text:"CONTAGION: BNP Paribas takes loss on Deutsche Bank: -1.2bn EUR. CDS spreads at 578bps.", ri:9, from:"DBK", to:"BNP", term:"[CTPY] BNP <- DBK :: -1.2 BN"},
+  {tag:"firesale",  text:"FIRE SALE: Continuing forced selling of sovereign bonds across all banks.", ri:10, term:"[FIRE] SOVEREIGN BONDS MTM -0.1%"},
+  {tag:"contagion", text:"CONTAGION: Deutsche Bank takes loss on UniCredit: -1.0bn EUR. UCG CDS at 800bps.", ri:11, from:"UCG", to:"DBK", term:"[CTPY] DBK <- UCG :: -1.0 BN"},
+  {tag:"system",    text:"Circuit breaker reached: 10 rounds of contagion. Total system losses: 531bn EUR.", ri:11, term:"[SYS]  TOTAL SYSTEM LOSSES :: 531 BN EUR"},
+  {tag:"ecb",       text:"ECB INTERVENES: Emergency liquidity to Deutsche Bank: +50.0bn EUR", ri:12, from:"ECB", to:"DBK", term:"[ECB]  DBK :: +50.0 BN ELA"},
+  {tag:"ecb",       text:"ECB INTERVENES: Emergency liquidity to BNP Paribas: +50.0bn EUR", ri:12, from:"ECB", to:"BNP", term:"[ECB]  BNP :: +50.0 BN ELA"},
+  {tag:"ecb",       text:"ECB INTERVENES: Emergency liquidity to Commerzbank: +47.5bn EUR", ri:12, from:"ECB", to:"CBK", term:"[ECB]  CBK :: +47.5 BN ELA"},
+  {tag:"ecb",       text:"ECB INTERVENES: Emergency liquidity to BayernLB: +26.8bn EUR", ri:12, from:"ECB", to:"BayLB", term:"[ECB]  BAYLB :: +26.8 BN ELA"},
+  {tag:"ecb",       text:"ECB INTERVENES: Emergency liquidity to UBS: +50.0bn EUR", ri:12, from:"ECB", to:"UBS", term:"[ECB]  UBS :: +50.0 BN ELA"},
+  {tag:"system",    text:"Total ELA deployed: 224bn EUR. Banks critical: 4. Stressed: 1. Normal: 2.", ri:12, term:"[SYS]  SIMULATION COMPLETE"},
+];
+
+/* ================================================================
+   COLORS
+   ================================================================ */
+const C_GREEN=new THREE.Color(0x00ff41), C_ORANGE=new THREE.Color(0xff6b00),
+      C_RED=new THREE.Color(0xff0040), C_BLUE=new THREE.Color(0x0088ff), C_WHITE=new THREE.Color(0xffffff);
+const STATUS_C={normal:C_GREEN, stressed:C_ORANGE, critical:C_RED};
+const BANK_COLORS={ECB:new THREE.Color(0x0088ff),JPM:new THREE.Color(0x00ffff),UBS:new THREE.Color(0x00ff41),DBK:new THREE.Color(0xffff00),BNP:new THREE.Color(0xff00ff),UCG:new THREE.Color(0xff6b00),CBK:new THREE.Color(0xff0040),BayLB:new THREE.Color(0xaa00ff)};
 
 /* ================================================================
    THREE.JS SETUP
    ================================================================ */
-const centerEl = document.getElementById('center');
-const W = ()=>centerEl.clientWidth;
-const H = ()=>centerEl.clientHeight;
-
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, W()/H(), 0.1, 300);
-camera.position.set(14, 10, 18);
-
-const renderer = new THREE.WebGLRenderer({antialias:true, alpha:false});
-renderer.setSize(W(), H());
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setClearColor(0x000000);
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0;
-centerEl.insertBefore(renderer.domElement, centerEl.firstChild);
-renderer.domElement.style.position='absolute';
-renderer.domElement.style.top='0';
-renderer.domElement.style.left='0';
-
-const orbit = new OrbitControls(camera, renderer.domElement);
-orbit.enableDamping = true;
-orbit.dampingFactor = 0.04;
-orbit.autoRotate = true;
-orbit.autoRotateSpeed = 0.3;
-orbit.minDistance = 8;
-orbit.maxDistance = 50;
-orbit.target.set(0, 0, 0);
-
-scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-const pLight1 = new THREE.PointLight(0xffffff, 1.0, 60);
-pLight1.position.set(0, 10, 10);
-scene.add(pLight1);
-const pLight2 = new THREE.PointLight(0x00ff41, 0.3, 40);
-pLight2.position.set(0, 0, 0);
-scene.add(pLight2);
+const centerEl=document.getElementById('center');
+const W=()=>centerEl.clientWidth, H=()=>centerEl.clientHeight;
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(40, W()/H(), 0.1, 300);
+camera.position.set(18, 12, 22);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(W(),H()); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setClearColor(0x000000);
+centerEl.insertBefore(renderer.domElement,centerEl.firstChild);
+renderer.domElement.style.cssText='position:absolute;top:0;left:0';
+const orbit=new OrbitControls(camera,renderer.domElement);
+orbit.enableDamping=true; orbit.dampingFactor=0.04; orbit.autoRotate=true; orbit.autoRotateSpeed=0.25;
+orbit.minDistance=12; orbit.maxDistance=60; orbit.target.set(0,1,0);
+scene.add(new THREE.AmbientLight(0xffffff,0.6));
+const pl1=new THREE.PointLight(0xffffff,1.0,80); pl1.position.set(0,10,10); scene.add(pl1);
+const pl2=new THREE.PointLight(0x00ff41,0.3,50); pl2.position.set(0,0,0); scene.add(pl2);
 
 /* Star field */
-const starGeo = new THREE.BufferGeometry();
-const starPos = new Float32Array(600 * 3);
-for(let i=0;i<600;i++){starPos[i*3]=(Math.random()-0.5)*120;starPos[i*3+1]=(Math.random()-0.5)*80;starPos[i*3+2]=(Math.random()-0.5)*120;}
-starGeo.setAttribute('position', new THREE.BufferAttribute(starPos,3));
-scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({color:0xffffff, size:0.08, transparent:true, opacity:0.35})));
+const sGeo=new THREE.BufferGeometry(),sP=new Float32Array(600*3);
+for(let i=0;i<600;i++){sP[i*3]=(Math.random()-0.5)*140;sP[i*3+1]=(Math.random()-0.5)*90;sP[i*3+2]=(Math.random()-0.5)*140;}
+sGeo.setAttribute('position',new THREE.BufferAttribute(sP,3));
+scene.add(new THREE.Points(sGeo,new THREE.PointsMaterial({color:0xffffff,size:0.08,transparent:true,opacity:0.35})));
 
 /* CSS2D labels */
-const labelRenderer = new CSS2DRenderer();
-labelRenderer.setSize(W(), H());
-labelRenderer.domElement.style.position='absolute';
-labelRenderer.domElement.style.top='0';
-labelRenderer.domElement.style.left='0';
-labelRenderer.domElement.style.pointerEvents='none';
+const labelRenderer=new CSS2DRenderer();
+labelRenderer.setSize(W(),H());
+labelRenderer.domElement.style.cssText='position:absolute;top:0;left:0;pointer-events:none';
 centerEl.appendChild(labelRenderer.domElement);
 
 /* ================================================================
    BANK SPHERES
    ================================================================ */
-const meshes = {}, glows = {}, bankLabelEls = {};
-for(const [id, b] of Object.entries(BANKS)){
-  const r = b.ecb ? 0.9 : 0.3 + Math.sqrt(b.assets/3550)*0.6;
-  const col = b.ecb ? C_BLUE : C_GREEN;
-  const mat = new THREE.MeshPhongMaterial({color:col, emissive:col, emissiveIntensity:0.4, shininess:80, specular:new THREE.Color(0x444444)});
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(r,32,32), mat);
-  mesh.position.set(b.x, b.y, b.z);
-  scene.add(mesh);
-  meshes[id] = mesh;
-  const gMat = new THREE.MeshBasicMaterial({color:col, transparent:true, opacity:0.12, side:THREE.BackSide});
-  const glow = new THREE.Mesh(new THREE.SphereGeometry(r*1.8,16,16), gMat);
-  mesh.add(glow);
-  glows[id] = glow;
-  const labelDiv = document.createElement('div');
-  labelDiv.style.cssText='font-family:Courier New,monospace;text-align:center;pointer-events:none;text-shadow:0 0 8px rgba(0,0,0,1),0 0 4px rgba(0,0,0,1)';
-  if(b.ecb) labelDiv.innerHTML='<div style="font-size:14px;font-weight:700;color:#0088ff;letter-spacing:2px">ECB</div>';
-  else labelDiv.innerHTML=`<div style="font-size:12px;font-weight:700;color:#ffffff;letter-spacing:1px">${id}</div><div class="lbl-cet1" style="font-size:11px;font-weight:700;color:#00ff41">--</div>`;
-  const labelObj = new CSS2DObject(labelDiv);
-  labelObj.position.set(0, r + 0.5, 0);
-  mesh.add(labelObj);
-  bankLabelEls[id] = labelDiv;
+const meshes={},glows={},bankLabelEls={};
+for(const [id,b] of Object.entries(BANKS)){
+  const r=b.ecb?0.9:0.3+Math.sqrt(b.assets/3550)*0.6;
+  const col=b.ecb?C_BLUE:C_GREEN;
+  const mat=new THREE.MeshPhongMaterial({color:col,emissive:col,emissiveIntensity:0.4,shininess:80,specular:new THREE.Color(0x444444)});
+  const mesh=new THREE.Mesh(new THREE.SphereGeometry(r,32,32),mat);
+  mesh.position.set(b.x,b.y,b.z); scene.add(mesh); meshes[id]=mesh;
+  const gMat=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.12,side:THREE.BackSide});
+  const glow=new THREE.Mesh(new THREE.SphereGeometry(r*1.8,16,16),gMat); mesh.add(glow); glows[id]=glow;
+  const ld=document.createElement('div');
+  ld.style.cssText='font-family:Courier New,monospace;text-align:center;pointer-events:none;text-shadow:0 0 8px #000,0 0 4px #000';
+  if(b.ecb) ld.innerHTML='<div style="font-size:14px;font-weight:700;color:#0088ff;letter-spacing:2px">ECB</div>';
+  else ld.innerHTML=`<div style="font-size:12px;font-weight:700;color:#fff;letter-spacing:1px">${id}</div><div class="lbl-cet1" style="font-size:11px;font-weight:700;color:#00ff41">--</div>`;
+  const lo=new CSS2DObject(ld); lo.position.set(0,r+0.5,0); mesh.add(lo); bankLabelEls[id]=ld;
 }
 
 /* ================================================================
-   INTERBANK EDGES - bezier curves with flow particles
+   INTERBANK EDGES - bezier curves, dim baseline, bright on active
    ================================================================ */
-// Compute bezier control point: midpoint offset perpendicular to edge
-function bezierEdge(a, b, idx){
-  const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
-  const dir = new THREE.Vector3().subVectors(b, a);
-  const perp = new THREE.Vector3(-dir.z, 0.5, dir.x).normalize();
-  const offset = 0.4 + (idx % 5) * 0.15; // vary arc per edge
-  mid.addScaledVector(perp, offset);
+function bezierCtrl(a,b,idx){
+  const mid=new THREE.Vector3().addVectors(a,b).multiplyScalar(0.5);
+  const dir=new THREE.Vector3().subVectors(b,a);
+  const perp=new THREE.Vector3(-dir.z,0.4,dir.x).normalize();
+  mid.addScaledVector(perp, 0.5+(idx%5)*0.2);
   return mid;
 }
-function sampleBezier(p0, ctrl, p1, t){
-  const u = 1-t;
-  return new THREE.Vector3(
-    u*u*p0.x + 2*u*t*ctrl.x + t*t*p1.x,
-    u*u*p0.y + 2*u*t*ctrl.y + t*t*p1.y,
-    u*u*p0.z + 2*u*t*ctrl.z + t*t*p1.z
-  );
-}
+function sampleBez(p0,c,p1,t){const u=1-t;return new THREE.Vector3(u*u*p0.x+2*u*t*c.x+t*t*p1.x,u*u*p0.y+2*u*t*c.y+t*t*p1.y,u*u*p0.z+2*u*t*c.z+t*t*p1.z);}
 
-const edges = [];
-const flowDots = []; // animated particles on edges
-
-for(let ei=0; ei<EXPOSURES.length; ei++){
-  const e = EXPOSURES[ei];
-  const ba = BANKS[e.f], bb = BANKS[e.t];
-  if(!ba||!bb) continue;
-  const p0 = new THREE.Vector3(ba.x, ba.y, ba.z);
-  const p1 = new THREE.Vector3(bb.x, bb.y, bb.z);
-  const ctrl = bezierEdge(p0, p1, ei);
-  const bankCol = BANK_COLORS[e.f] || C_GREEN;
-
-  // Base line (thin, 20% opacity)
-  const pts = [];
-  for(let i=0;i<=30;i++) pts.push(sampleBezier(p0, ctrl, p1, i/30));
-  const geo = new THREE.BufferGeometry().setFromPoints(pts);
-  const mat = new THREE.LineBasicMaterial({color:bankCol, transparent:true, opacity:0.2});
-  const line = new THREE.Line(geo, mat);
-  line.userData = {from:e.f, to:e.t, amt:e.a, p0, p1, ctrl, bankCol:bankCol.clone(), flashAge:-1};
-  scene.add(line);
-  edges.push(line);
-
-  // Flow particles (3-5 per edge)
-  const count = 3 + Math.floor(e.a / 8);
-  const speed = 0.15 + e.a / 60;
-  for(let i=0; i<count; i++){
-    const dGeo = new THREE.SphereGeometry(0.035, 6, 6);
-    const dMat = new THREE.MeshBasicMaterial({color:bankCol, transparent:true, opacity:0.9});
-    const dot = new THREE.Mesh(dGeo, dMat);
-    scene.add(dot);
-    flowDots.push({mesh:dot, edge:line.userData, t:i/count, speed, baseColor:bankCol.clone(), contagionAge:-1});
-  }
-}
-
-/* ================================================================
-   CONTAGION PULSE SYSTEM - flashes and traveling pulses on edges
-   ================================================================ */
-// When contagion fires from bank A to bank B:
-//  1. Find edges where from=A, to=B
-//  2. Flash the base line white for 0.3s
-//  3. Speed up flow dots and turn them red for 1s
-//  4. Flash target bank sphere white briefly
-const contagionFlashes = []; // {bankId, age}
-
-function fireContagion(fromId, toId){
-  // Find matching edges
-  for(const e of edges){
-    if(e.userData.from === fromId && e.userData.to === toId){
-      e.userData.flashAge = 0; // start flash
-    }
-  }
-  // Speed up and redden flow dots on those edges
-  for(const d of flowDots){
-    if(d.edge.from === fromId && d.edge.to === toId){
-      d.contagionAge = 0;
-    }
-  }
-  // Flash target bank sphere
-  contagionFlashes.push({bankId: toId, age: 0});
-}
-
-// Map terminal events to contagion fires for each round
-const CONTAGION_EVENTS = {
-  2: [["DBK","BNP"],["BNP","DBK"],["DBK","UCG"],["BNP","UCG"],["CBK","BayLB"]],
-  3: [["CBK","BayLB"],["DBK","BayLB"],["BNP","BayLB"]],
-  4: [["DBK","BNP"],["BNP","UCG"],["UBS","DBK"]],
-  5: [["DBK","BayLB"],["BNP","BayLB"]],
-  6: [["BNP","DBK"],["DBK","UCG"],["UBS","DBK"]],
-  7: [["BNP","DBK"],["UBS","BNP"]],
-  8: [["DBK","BayLB"],["BNP","BayLB"]],
-  9: [["BNP","DBK"],["DBK","UCG"],["UBS","DBK"]],
-  10:[["DBK","CBK"],["BNP","BayLB"]],
-  11:[["BNP","DBK"],["DBK","UCG"]],
-};
-
-/* ================================================================
-   ECB BEAMS + PARTICLES
-   ================================================================ */
-const ecbBeams = {};
-for(const id of BANK_ORDER){
-  const ecb=BANKS.ECB, b=BANKS[id];
-  const pts=[];
-  for(let i=0;i<=50;i++){const t=i/50; pts.push(new THREE.Vector3(ecb.x+(b.x-ecb.x)*t, ecb.y+(b.y-ecb.y)*t+Math.sin(t*Math.PI)*1.5, ecb.z+(b.z-ecb.z)*t));}
+const edges=[];
+for(let i=0;i<EXPOSURES.length;i++){
+  const e=EXPOSURES[i],ba=BANKS[e.f],bb=BANKS[e.t];
+  if(!ba||!bb)continue;
+  const p0=new THREE.Vector3(ba.x,ba.y,ba.z),p1=new THREE.Vector3(bb.x,bb.y,bb.z);
+  const ctrl=bezierCtrl(p0,p1,i);
+  const bankCol=BANK_COLORS[e.f]||C_GREEN;
+  const pts=[];for(let j=0;j<=30;j++)pts.push(sampleBez(p0,ctrl,p1,j/30));
   const geo=new THREE.BufferGeometry().setFromPoints(pts);
-  const mat=new THREE.LineBasicMaterial({color:C_BLUE, transparent:true, opacity:0});
-  scene.add(new THREE.Line(geo,mat));
+  const mat=new THREE.LineBasicMaterial({color:bankCol,transparent:true,opacity:0.1});
+  const line=new THREE.Line(geo,mat);
+  line.userData={from:e.f,to:e.t,amt:e.a,p0,p1,ctrl,bankCol:bankCol.clone()};
+  scene.add(line); edges.push(line);
+}
+
+/* Active-edge flow particles: pool of 5 dots, only visible when an edge is active */
+const flowPool=[];
+for(let i=0;i<5;i++){
+  const dot=new THREE.Mesh(new THREE.SphereGeometry(0.06,8,8),new THREE.MeshBasicMaterial({color:C_WHITE,transparent:true,opacity:0}));
+  scene.add(dot); flowPool.push({mesh:dot,t:i/5,active:false,edge:null,speed:0.4});
+}
+let activeEdge=null; // current edge userData being highlighted
+
+function activateEdge(fromId,toId){
+  // Find first matching edge
+  activeEdge=null;
+  for(const e of edges){
+    if(e.userData.from===fromId && e.userData.to===toId){activeEdge=e.userData;break;}
+  }
+  // Dim all edges, brighten active
+  for(const e of edges){
+    if(activeEdge && e.userData===activeEdge){
+      e.material.color.copy(C_WHITE); e.material.opacity=0.9;
+    } else {
+      e.material.color.copy(e.userData.bankCol); e.material.opacity=0.1;
+    }
+  }
+  // Activate flow particles on active edge
+  if(activeEdge){
+    const col=activeEdge.bankCol;
+    for(let i=0;i<flowPool.length;i++){
+      flowPool[i].active=true; flowPool[i].edge=activeEdge; flowPool[i].t=i/flowPool.length;
+      flowPool[i].mesh.material.color.copy(col); flowPool[i].mesh.material.opacity=0.9;
+      flowPool[i].speed=0.3+activeEdge.amt/30;
+    }
+  } else {
+    for(const d of flowPool){d.active=false;d.mesh.material.opacity=0;}
+  }
+}
+function deactivateEdges(){
+  activeEdge=null;
+  for(const e of edges){e.material.color.copy(e.userData.bankCol);e.material.opacity=0.1;}
+  for(const d of flowPool){d.active=false;d.mesh.material.opacity=0;}
+}
+
+/* ECB beams */
+const ecbBeams={};
+for(const id of BANK_ORDER){
+  const ecb=BANKS.ECB,b=BANKS[id],pts=[];
+  for(let i=0;i<=50;i++){const t=i/50;pts.push(new THREE.Vector3(ecb.x+(b.x-ecb.x)*t,ecb.y+(b.y-ecb.y)*t+Math.sin(t*Math.PI)*2,ecb.z+(b.z-ecb.z)*t));}
+  const mat=new THREE.LineBasicMaterial({color:C_BLUE,transparent:true,opacity:0});
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),mat));
   ecbBeams[id]={mat};
 }
-const ecbParticles = [];
+const ecbParticles=[];
 function spawnEcbParticles(targets){
-  ecbParticles.forEach(p=>scene.remove(p.mesh)); ecbParticles.length=0;
+  ecbParticles.forEach(p=>scene.remove(p.mesh));ecbParticles.length=0;
   const ecb=BANKS.ECB;
-  for(const id of targets){
-    const b=BANKS[id]; if(!b) continue;
-    for(let i=0;i<12;i++){
-      const dot=new THREE.Mesh(new THREE.SphereGeometry(0.04,6,6), new THREE.MeshBasicMaterial({color:C_BLUE, transparent:true, opacity:0.8}));
-      dot.position.set(ecb.x, ecb.y, ecb.z);
-      scene.add(dot);
-      ecbParticles.push({mesh:dot, from:ecb, to:b, t:i/12, speed:0.3+Math.random()*0.2});
-    }
-  }
+  for(const id of targets){const b=BANKS[id];if(!b)continue;
+    for(let i=0;i<10;i++){const dot=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),new THREE.MeshBasicMaterial({color:C_BLUE,transparent:true,opacity:0.8}));
+    dot.position.set(ecb.x,ecb.y,ecb.z);scene.add(dot);ecbParticles.push({mesh:dot,from:ecb,to:b,t:i/10,speed:0.3+Math.random()*0.2});}}
 }
-function clearEcbParticles(){ecbParticles.forEach(p=>scene.remove(p.mesh)); ecbParticles.length=0;}
+function clearEcbParticles(){ecbParticles.forEach(p=>scene.remove(p.mesh));ecbParticles.length=0;}
 
-/* ================================================================
-   SHOCKWAVE RINGS
-   ================================================================ */
-const shockwaves = [];
+/* Shockwaves */
+const shockwaves=[];
 function spawnShockwave(bankId){
-  const m=meshes[bankId]; if(!m) return;
-  const ring=new THREE.Mesh(new THREE.RingGeometry(0.1,0.15,32), new THREE.MeshBasicMaterial({color:C_RED, transparent:true, opacity:0.8, side:THREE.DoubleSide}));
-  ring.position.copy(m.position); ring.lookAt(camera.position);
-  scene.add(ring); shockwaves.push({mesh:ring, age:0, maxAge:1.5});
+  const m=meshes[bankId];if(!m)return;
+  const ring=new THREE.Mesh(new THREE.RingGeometry(0.1,0.15,32),new THREE.MeshBasicMaterial({color:C_RED,transparent:true,opacity:0.8,side:THREE.DoubleSide}));
+  ring.position.copy(m.position);ring.lookAt(camera.position);scene.add(ring);shockwaves.push({mesh:ring,age:0,maxAge:1.5});
 }
 
 /* ================================================================
    STATE
    ================================================================ */
-let curRound=0, playing=false, timer=null, ecbActive=false, speedMs=1500;
-const SPEEDS=[3000,1500,600], SPEED_NAMES=["SLOW","NORMAL","FAST"];
+let curEvent=0, playing=false, timer=null, ecbActive=false, speedMs=800;
+const SPEEDS=[1500,800,400], SPEED_NAMES=["SLOW","NORMAL","FAST"];
+let prevStatuses={}, prevRound=-1;
+
+/* ================================================================
+   NARRATIVE BOX
+   ================================================================ */
+const narrativeEl=document.getElementById('narrative');
+function showNarrative(tag,text){
+  narrativeEl.innerHTML=`<div class="tag ${tag}">${tag.toUpperCase()}</div>${text}`;
+  narrativeEl.classList.add('show');
+}
+function hideNarrative(){narrativeEl.classList.remove('show');}
 
 /* ================================================================
    TERMINAL FEED
@@ -463,21 +448,16 @@ const termEl=document.getElementById('terminal');
 let typeTimer=null;
 function addTermLine(text){
   let html=text;
-  if(text.startsWith('[ECB]')) html=`<span class="ela">${text}</span>`;
-  else if(text.startsWith('[WARN]')||text.startsWith('[SHOCK]')) html=`<span class="loss">${text}</span>`;
-  else if(text.startsWith('[SOLV]')||text.startsWith('[FIRE]')) html=`<span class="amt">${text}</span>`;
-  else if(text.startsWith('[CTPY]')||text.startsWith('[LIQ]')) html=`<span class="ch">${text}</span>`;
-  else if(text.startsWith('[CONF]')) html=`<span style="color:var(--orange)">${text}</span>`;
-  else if(text.startsWith('[SYS]')) html=`<span style="color:rgba(0,255,65,0.5)">${text}</span>`;
-  const div=document.createElement('div'); div.className='term-line'; div.innerHTML=html;
-  termEl.appendChild(div); termEl.scrollTop=termEl.scrollHeight;
+  if(text.startsWith('[ECB]'))html=`<span class="ela">${text}</span>`;
+  else if(text.startsWith('[WARN]')||text.startsWith('[SHOCK]'))html=`<span class="loss">${text}</span>`;
+  else if(text.startsWith('[SOLV]')||text.startsWith('[FIRE]'))html=`<span class="amt">${text}</span>`;
+  else if(text.startsWith('[CTPY]')||text.startsWith('[LIQ]'))html=`<span class="ch">${text}</span>`;
+  else if(text.startsWith('[CONF]'))html=`<span style="color:var(--orange)">${text}</span>`;
+  else if(text.startsWith('[SYS]'))html=`<span style="color:rgba(0,255,65,0.5)">${text}</span>`;
+  const div=document.createElement('div');div.className='term-line';div.innerHTML=html;
+  termEl.appendChild(div);termEl.scrollTop=termEl.scrollHeight;
 }
-function typeLines(lines,cb){
-  let i=0; const interval=Math.max(40,speedMs/(lines.length+1));
-  function next(){if(i>=lines.length){if(cb)cb();return;} addTermLine(lines[i]); i++; typeTimer=setTimeout(next,interval);}
-  next();
-}
-function clearTerminal(){termEl.innerHTML=''; if(typeTimer){clearTimeout(typeTimer);typeTimer=null;}}
+function clearTerminal(){termEl.innerHTML='';if(typeTimer){clearTimeout(typeTimer);typeTimer=null;}}
 
 /* ================================================================
    RIGHT PANEL
@@ -485,26 +465,19 @@ function clearTerminal(){termEl.innerHTML=''; if(typeTimer){clearTimeout(typeTim
 const bankListEl=document.getElementById('bank-list');
 function buildBankCards(){
   bankListEl.innerHTML='';
-  for(const id of BANK_ORDER){
-    const div=document.createElement('div'); div.className='bank-card normal'; div.id='card-'+id;
-    div.innerHTML=`<div class="bank-name" id="bn-${id}">${id} <span style="font-weight:400;font-size:8px;color:rgba(255,255,255,0.3)">${BANKS[id].country}</span></div><div class="cet1-num" id="cv-${id}" style="color:var(--green)">--</div><div class="cet1-row"><span class="cet1-label">CET1</span><div class="cet1-bar-bg"><div class="cet1-bar" id="bar-${id}" style="width:50%;background:var(--green)"></div></div></div><div class="bank-meta"><span>LCR <span id="lcr-${id}">--</span>%</span><span class="status-tag normal" id="st-${id}">HEALTHY</span></div>`;
-    bankListEl.appendChild(div);
-  }
+  for(const id of BANK_ORDER){const div=document.createElement('div');div.className='bank-card normal';div.id='card-'+id;
+    div.innerHTML=`<div class="bank-name">${id} <span style="font-weight:400;font-size:8px;color:rgba(255,255,255,0.3)">${BANKS[id].country}</span></div><div class="cet1-num" id="cv-${id}" style="color:var(--green)">--</div><div class="cet1-row"><span class="cet1-label">CET1</span><div class="cet1-bar-bg"><div class="cet1-bar" id="bar-${id}" style="width:50%;background:var(--green)"></div></div></div><div class="bank-meta"><span>LCR <span id="lcr-${id}">--</span>%</span><span class="status-tag normal" id="st-${id}">HEALTHY</span></div>`;
+    bankListEl.appendChild(div);}
 }
 function updateBankCards(data){
-  for(const id of BANK_ORDER){
-    const d=data.b[id]; if(!d) continue;
-    const card=document.getElementById('card-'+id), bar=document.getElementById('bar-'+id), cv=document.getElementById('cv-'+id), lcr=document.getElementById('lcr-'+id), st=document.getElementById('st-'+id);
+  for(const id of BANK_ORDER){const d=data.b[id];if(!d)continue;
+    const card=document.getElementById('card-'+id),bar=document.getElementById('bar-'+id),cv=document.getElementById('cv-'+id),lcr=document.getElementById('lcr-'+id),st=document.getElementById('st-'+id);
     const isEcb=data.ecb&&data.ecb.includes(id);
     card.className='bank-card '+d.s+(isEcb?' ecb':'');
     const pct=Math.max(0,Math.min(100,d.c/16*100));
     const col=d.s==='normal'?'var(--green)':d.s==='stressed'?'var(--orange)':'var(--red)';
-    bar.style.width=pct+'%'; bar.style.background=col;
-    cv.textContent=d.c.toFixed(1)+'%'; cv.style.color=col;
-    lcr.textContent=d.l;
-    st.className='status-tag '+d.s;
-    st.textContent=d.s==='normal'?'HEALTHY':d.s==='stressed'?'STRESSED':'CRITICAL';
-  }
+    bar.style.width=pct+'%';bar.style.background=col;cv.textContent=d.c.toFixed(1)+'%';cv.style.color=col;lcr.textContent=d.l;
+    st.className='status-tag '+d.s;st.textContent=d.s==='normal'?'HEALTHY':d.s==='stressed'?'STRESSED':'CRITICAL';}
 }
 function updateHud(data){
   document.getElementById('h-round').textContent=data.label;
@@ -515,75 +488,97 @@ function updateHud(data){
 }
 
 /* ================================================================
-   UPDATE TO ROUND
+   APPLY A SINGLE STORY EVENT
    ================================================================ */
-let prevStatuses={};
+function applyEvent(idx){
+  curEvent=idx;
+  const ev=STORY[idx]; if(!ev)return;
+  const data=R[ev.ri]; if(!data)return;
 
-function goToRound(idx, animate){
-  curRound=idx;
-  const data=R[idx]; if(!data) return;
-
-  // Update spheres + labels
-  for(const [id, d] of Object.entries(data.b)){
-    const m=meshes[id], g=glows[id]; if(!m) continue;
-    const col=STATUS_C[d.s]||C_GREEN;
-    const lerp=animate?0.5:1;
-    m.material.color.lerp(col,lerp); m.material.emissive.lerp(col,lerp);
-    m.material.emissiveIntensity=d.s==='critical'?0.6:0.4;
-    g.material.color.copy(col); g.material.opacity=d.s==='critical'?0.2:0.12;
-    const lbl=bankLabelEls[id];
-    if(lbl){const el=lbl.querySelector('.lbl-cet1'); if(el){el.textContent='CET1 '+d.c.toFixed(1)+'%'; el.style.color=d.s==='normal'?'#00ff41':d.s==='stressed'?'#ff6b00':'#ff0040';}}
-    if(animate && d.s==='critical' && prevStatuses[id]!=='critical') spawnShockwave(id);
-  }
-  prevStatuses={};
-  for(const [id,d] of Object.entries(data.b)) prevStatuses[id]=d.s;
-
-  // Fire contagion animations for this round
-  if(animate && CONTAGION_EVENTS[idx]){
-    const fires=CONTAGION_EVENTS[idx];
-    fires.forEach(([from,to],i)=>{
-      setTimeout(()=>fireContagion(from,to), i*200);
-    });
+  // Update round state if changed
+  if(ev.ri!==prevRound){
+    prevRound=ev.ri;
+    for(const [id,d] of Object.entries(data.b)){
+      const m=meshes[id],g=glows[id];if(!m)continue;
+      const col=STATUS_C[d.s]||C_GREEN;
+      m.material.color.copy(col);m.material.emissive.copy(col);
+      m.material.emissiveIntensity=d.s==='critical'?0.6:0.4;
+      g.material.color.copy(col);g.material.opacity=d.s==='critical'?0.2:0.12;
+      const lbl=bankLabelEls[id];
+      if(lbl){const el=lbl.querySelector('.lbl-cet1');if(el){el.textContent='CET1 '+d.c.toFixed(1)+'%';el.style.color=d.s==='normal'?'#00ff41':d.s==='stressed'?'#ff6b00':'#ff0040';}}
+      if(d.s==='critical'&&prevStatuses[id]!=='critical')spawnShockwave(id);
+    }
+    prevStatuses={};for(const [id,d] of Object.entries(data.b))prevStatuses[id]=d.s;
+    updateBankCards(data);updateHud(data);
   }
 
-  // ECB
+  // Narrative box
+  showNarrative(ev.tag, ev.text);
+
+  // Terminal line
+  if(ev.term) addTermLine(ev.term);
+
+  // Edge highlight: if event has from+to, activate that edge
+  if(ev.from && ev.to){
+    activateEdge(ev.from, ev.to);
+  } else {
+    deactivateEdges();
+    // If just a 'from' bank, flash it
+    if(ev.from){
+      const m=meshes[ev.from];
+      if(m){m.material.emissive.copy(C_WHITE);m.material.emissiveIntensity=0.8;
+        setTimeout(()=>{const d=R[ev.ri].b[ev.from];if(d){const c=STATUS_C[d.s]||C_GREEN;m.material.emissive.copy(c);m.material.emissiveIntensity=d.s==='critical'?0.6:0.4;}},400);
+      }
+    }
+  }
+
+  // ECB handling
   ecbActive=!!(data.ecb&&data.ecb.length>0);
   const banner=document.getElementById('ecb-banner');
-  if(ecbActive){
-    banner.style.display='block'; document.getElementById('ecb-amt').textContent=data.ela+' BN EUR';
-    for(const [id,obj] of Object.entries(ecbBeams)) obj.mat.opacity=data.ecb.includes(id)?0.5:0;
+  if(ev.tag==='ecb'&&ev.to){
+    for(const [id,obj] of Object.entries(ecbBeams))obj.mat.opacity=id===ev.to?0.7:0;
     meshes.ECB.material.emissiveIntensity=0.8;
-    if(animate) spawnEcbParticles(data.ecb);
-  } else {
+    if(ecbParticles.length===0&&data.ecb)spawnEcbParticles(data.ecb);
+    banner.style.display='block';document.getElementById('ecb-amt').textContent=data.ela+' BN EUR';
+  } else if(!ecbActive){
     banner.style.display='none';
-    for(const obj of Object.values(ecbBeams)) obj.mat.opacity=0;
+    for(const obj of Object.values(ecbBeams))obj.mat.opacity=0;
     meshes.ECB.material.emissiveIntensity=0.5;
     clearEcbParticles();
   }
-
-  updateBankCards(data); updateHud(data);
-  const ev=EVENTS[idx];
-  if(ev&&animate) typeLines(ev.lines);
-  else if(ev) ev.lines.forEach(l=>addTermLine(l));
 }
 
 /* ================================================================
-   PLAYBACK CONTROLS
+   PLAYBACK
    ================================================================ */
-function stepForward(){if(curRound<R.length-1)goToRound(curRound+1,true);else stopPlay();}
-function stepBack(){if(curRound>0){clearTerminal();for(let i=0;i<curRound;i++){const ev=EVENTS[i];if(ev)ev.lines.forEach(l=>addTermLine(l));}goToRound(curRound-1,false);}}
+function stepForward(){
+  if(curEvent<STORY.length-1)applyEvent(curEvent+1);
+  else stopPlay();
+}
+function stepBack(){
+  if(curEvent>0){
+    clearTerminal();prevRound=-1;prevStatuses={};deactivateEdges();hideNarrative();
+    clearEcbParticles();document.getElementById('ecb-banner').style.display='none';
+    for(let i=0;i<=curEvent-1;i++)applyEvent(i);
+  }
+}
 function startPlay(){playing=true;document.getElementById('btn-play').classList.add('active');document.getElementById('btn-play').innerHTML='&#10074;&#10074; PAUSE';timer=setInterval(stepForward,speedMs);}
 function stopPlay(){playing=false;document.getElementById('btn-play').classList.remove('active');document.getElementById('btn-play').innerHTML='&#9654; PLAY';if(timer){clearInterval(timer);timer=null;}}
-function resetSim(){stopPlay();clearTerminal();clearEcbParticles();shockwaves.forEach(s=>scene.remove(s.mesh));shockwaves.length=0;contagionFlashes.length=0;prevStatuses={};goToRound(0,false);}
+function resetSim(){stopPlay();clearTerminal();clearEcbParticles();hideNarrative();deactivateEdges();
+  shockwaves.forEach(s=>scene.remove(s.mesh));shockwaves.length=0;
+  prevStatuses={};prevRound=-1;curEvent=0;
+  document.getElementById('ecb-banner').style.display='none';
+  applyEvent(0);}
 
-document.getElementById('btn-play').addEventListener('click',()=>{if(playing)stopPlay();else{if(curRound>=R.length-1)resetSim();startPlay();}});
+document.getElementById('btn-play').addEventListener('click',()=>{if(playing)stopPlay();else{if(curEvent>=STORY.length-1)resetSim();startPlay();}});
 document.getElementById('btn-reset').addEventListener('click',resetSim);
-const slider=document.getElementById('speed-slider'), speedLbl=document.getElementById('speed-label');
+const slider=document.getElementById('speed-slider'),speedLbl=document.getElementById('speed-label');
+slider.value=1;
 slider.addEventListener('input',()=>{const v=parseInt(slider.value);speedMs=SPEEDS[v];speedLbl.textContent=SPEED_NAMES[v];if(playing){stopPlay();startPlay();}});
-const helpBtn=document.getElementById('help-btn'), helpModal=document.getElementById('help-modal');
+const helpBtn=document.getElementById('help-btn'),helpModal=document.getElementById('help-modal');
 helpBtn.addEventListener('click',()=>{helpModal.style.display=helpModal.style.display==='block'?'none':'block';});
 document.addEventListener('keydown',(e)=>{
-  if(e.code==='Space'){e.preventDefault();if(playing)stopPlay();else{if(curRound>=R.length-1)resetSim();startPlay();}}
+  if(e.code==='Space'){e.preventDefault();if(playing)stopPlay();else{if(curEvent>=STORY.length-1)resetSim();startPlay();}}
   if(e.code==='KeyR')resetSim();
   if(e.code==='ArrowRight'){e.preventDefault();stopPlay();stepForward();}
   if(e.code==='ArrowLeft'){e.preventDefault();stopPlay();stepBack();}
@@ -596,101 +591,46 @@ document.addEventListener('keydown',(e)=>{
 /* ================================================================
    ANIMATION LOOP
    ================================================================ */
-const clock = new THREE.Clock();
-
+const clock=new THREE.Clock();
 function animate(){
   requestAnimationFrame(animate);
-  const t = clock.getElapsedTime();
-  const dt = Math.min(clock.getDelta(), 0.05);
-
+  const t=clock.getElapsedTime(),dt=Math.min(clock.getDelta(),0.05);
   orbit.update();
 
-  // Bob spheres
-  for(const [id, m] of Object.entries(meshes)){
-    const b=BANKS[id]; m.position.y=b.y+Math.sin(t*0.6+b.x*0.5)*0.1;
-  }
+  // Bob
+  for(const [id,m] of Object.entries(meshes)){const b=BANKS[id];m.position.y=b.y+Math.sin(t*0.6+b.x*0.5)*0.1;}
 
-  // Flow dots along bezier edges
-  for(const d of flowDots){
-    const e=d.edge;
-    // Contagion mode: red + fast for 1s
-    if(d.contagionAge>=0){
-      d.contagionAge+=dt;
-      if(d.contagionAge<1.0){
-        d.mesh.material.color.copy(C_RED);
-        d.t+=dt*(d.speed*4); // 4x speed during contagion
-      } else {
-        d.contagionAge=-1;
-        d.mesh.material.color.copy(d.baseColor);
-      }
-    } else {
-      d.t+=dt*d.speed;
-    }
-    if(d.t>1) d.t-=1;
-    const pos=sampleBezier(e.p0, e.ctrl, e.p1, d.t);
+  // Flow particles on active edge only
+  for(const d of flowPool){
+    if(!d.active||!d.edge)continue;
+    d.t+=dt*d.speed;if(d.t>1)d.t-=1;
+    const pos=sampleBez(d.edge.p0,d.edge.ctrl,d.edge.p1,d.t);
     d.mesh.position.copy(pos);
-    d.mesh.material.opacity=0.6+Math.sin(d.t*Math.PI)*0.4;
-  }
-
-  // Edge flash (white for 0.3s then back to bank color)
-  for(const e of edges){
-    if(e.userData.flashAge>=0){
-      e.userData.flashAge+=dt;
-      if(e.userData.flashAge<0.3){
-        e.material.color.copy(C_WHITE);
-        e.material.opacity=0.8;
-      } else {
-        e.userData.flashAge=-1;
-        e.material.color.copy(e.userData.bankCol);
-        e.material.opacity=0.2;
-      }
-    }
-  }
-
-  // Bank sphere flash from contagion hit
-  for(let i=contagionFlashes.length-1; i>=0; i--){
-    const f=contagionFlashes[i];
-    f.age+=dt;
-    const m=meshes[f.bankId];
-    if(m && f.age<0.3){
-      m.material.emissive.copy(C_WHITE);
-      m.material.emissiveIntensity=0.8;
-    } else if(m && f.age<0.6){
-      // Fade back
-      const data=R[curRound];
-      if(data&&data.b[f.bankId]){
-        const col=STATUS_C[data.b[f.bankId].s]||C_GREEN;
-        m.material.emissive.lerp(col,0.3);
-        m.material.emissiveIntensity=0.5;
-      }
-    } else {
-      contagionFlashes.splice(i,1);
-    }
+    d.mesh.material.opacity=0.5+Math.sin(d.t*Math.PI)*0.5;
   }
 
   // Shockwaves
   for(let i=shockwaves.length-1;i>=0;i--){
-    const s=shockwaves[i]; s.age+=dt;
-    const p=s.age/s.maxAge;
-    s.mesh.scale.setScalar(1+p*6); s.mesh.material.opacity=0.6*(1-p); s.mesh.lookAt(camera.position);
+    const s=shockwaves[i];s.age+=dt;const p=s.age/s.maxAge;
+    s.mesh.scale.setScalar(1+p*6);s.mesh.material.opacity=0.6*(1-p);s.mesh.lookAt(camera.position);
     if(p>=1){scene.remove(s.mesh);shockwaves.splice(i,1);}
   }
 
   // ECB pulse
   if(ecbActive){
     const pulse=0.3+Math.sin(t*4)*0.3;
-    for(const [id,obj] of Object.entries(ecbBeams)){const data=R[curRound];if(data&&data.ecb&&data.ecb.includes(id))obj.mat.opacity=pulse;}
+    for(const [id,obj] of Object.entries(ecbBeams)){if(obj.mat.opacity>0.01)obj.mat.opacity=pulse;}
     meshes.ECB.material.emissiveIntensity=0.5+Math.sin(t*4)*0.4;
     glows.ECB.material.opacity=0.08+Math.sin(t*4)*0.08;
   }
   for(const p of ecbParticles){
-    p.t+=dt*p.speed; if(p.t>1)p.t-=1;
-    p.mesh.position.set(p.from.x+(p.to.x-p.from.x)*p.t, p.from.y+(p.to.y-p.from.y)*p.t+Math.sin(p.t*Math.PI)*1.5, p.from.z+(p.to.z-p.from.z)*p.t);
+    p.t+=dt*p.speed;if(p.t>1)p.t-=1;
+    p.mesh.position.set(p.from.x+(p.to.x-p.from.x)*p.t,p.from.y+(p.to.y-p.from.y)*p.t+Math.sin(p.t*Math.PI)*2,p.from.z+(p.to.z-p.from.z)*p.t);
     p.mesh.material.opacity=0.5+Math.sin(p.t*Math.PI)*0.5;
   }
 
-  renderer.render(scene, camera);
-  labelRenderer.render(scene, camera);
+  renderer.render(scene,camera);
+  labelRenderer.render(scene,camera);
 }
 
 /* ================================================================
@@ -698,7 +638,7 @@ function animate(){
    ================================================================ */
 window.addEventListener('resize',()=>{camera.aspect=W()/H();camera.updateProjectionMatrix();renderer.setSize(W(),H());labelRenderer.setSize(W(),H());});
 buildBankCards();
-goToRound(0, false);
+applyEvent(0);
 animate();
 </script>
 </body>
